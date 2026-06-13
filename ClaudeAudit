@@ -1,0 +1,364 @@
+  ================================================================================
+  PROJECT AUDIT REPORT
+  JavaFX Blackjack — Dorian Jovic
+  Audited: 2026-06-12  |  47 source files read in full
+  ================================================================================
+
+  OVERALL SUMMARY
+  ──────────────────────────────────────────────────────────────────────────────
+  Total requirements checked:   22 sub-requirements across I1–I7
+  PASS:     13
+  PARTIAL:   6
+  MISSING:   3
+
+  Estimated grade risk:
+    I1/I2/I3 — ~10–15 pts at risk (no ObservableList, minimal property binding)
+    I4        — ~2–3 pts at risk  (unsynchronized shared state in DealerPlayTask)
+    I5        — 0 pts at risk (solid)
+    I6        — ~7–10 pts at risk (JNDI is declared but never used)
+    I7        — ~2–3 pts at risk (bundled XML resource ignored on first launch)
+  ================================================================================
+
+
+  I1/I2/I3 — Game Engine, MVC, Bindings [~15/44 pts at risk]
+  ──────────────────────────────────────────────────────────────────────────────
+
+  [PASS] Game engine – Single Player (vs dealer)
+    Evidence: GameEngine.java, TurnManager.java
+    Full round lifecycle implemented: placeBet → dealInitialCards →
+    playerHit/Stand/DoubleDown/Split → DealerPlayTask → resolveShowdown.
+    TurnManager.advanceSinglePlayer() correctly chains PLAYER_TURN →
+    DEALER_TURN → SHOWDOWN → ROUND_OVER.
+
+  [PASS] Game engine – Multiplayer PvP (no dealer)
+    Evidence: GameEngine.java, TurnManager.advanceMultiplayer()
+    MP mode has no dealer. TurnManager chains PLAYER_TURN →
+    PLAYER2_TURN → SHOWDOWN. GameServer runs the authoritative engine
+    and broadcasts filtered state. GameController.initMultiplayer()
+    exists but is dead code (see CRITICAL ISSUES below).
+
+  [PASS] Dealer AI — hits on ≤16, stands on ≥17
+    Evidence: Dealer.shouldHit() (Dealer.java:28-39)
+    `if (score < 17) return true`. Configurable soft-17 rule via
+    `hitsSoft17` flag read from XML config. DealerPlayTask calls
+    dealer.shouldHit() correctly in its draw loop.
+
+  [PASS] Hand value calculation (Ace as 1 or 11)
+    Evidence: Hand.calculateScore() (Hand.java:46-63), Rank.ACE = 11
+    Adds all card values (Ace = 11 by Rank enum), then reduces Ace
+    count by 10 as long as score > 21 and aces remain. Correct
+    implementation.
+
+  [PASS] Hit action
+    Evidence: GameEngine.playerHit() (GameEngine.java:157-171)
+    Draws one card, adds to hand, calls turnManager.nextTurn() on bust.
+    Wired to GameController.onHit() and MultiplayerGameController.onHit().
+
+  [PASS] Stand action
+    Evidence: GameEngine.playerStand() (GameEngine.java:176-179)
+    Calls turnManager.nextTurn(). Correct.
+
+  [PASS] Double Down
+    Evidence: GameEngine.playerDoubleDown() (GameEngine.java:185-213)
+    Validates exactly 2 cards AND sufficient chips. Doubles the bet,
+    removes additional chips from player balance, draws exactly one card,
+    then auto-stands via turnManager.nextTurn(). Correct.
+
+  [PARTIAL] Split
+    Evidence: GameEngine.playerSplit() (GameEngine.java:219-253),
+              GameController.onHit() (GameController.java:183-208)
+    The split initiation in GameEngine is correct: validates same-rank pair,
+    charges same-bet cost, removes second card, deals one card to each hand.
+    ISSUE: When the player hits on a split hand, GameController.onHit()
+    directly calls `engine.getGameState().getDeck().drawCard()` and
+    `activeHand.addCard(card)` instead of calling `engine.playerHit()`.
+    This bypasses the engine's turn validation entirely. If validation
+    were ever tightened, split hits would silently pass through unchecked.
+    Additionally, TurnManager has no concept of split hands at all —
+    split turn management lives entirely in the controller.
+
+  [PASS] Bust detection, win/loss/draw resolution
+    Evidence: Hand.isBusted(), BlackjackRules.determineWinnerSP/MP()
+    SP: player bust → DEALER_WINS immediately. Dealer bust → PLAYER_WINS.
+    Natural BJ → BLACKJACK result, 3:2 payout (multiplier 2.5x).
+    Equal scores → PUSH. MP: both bust → PUSH. One bust → other wins.
+    BJ beats regular 21. All cases covered correctly.
+
+  [PASS] PvP — opponent card visibility enforced
+    Evidence: GameEngine.getVisibleStateForPlayer() (GameEngine.java:454-507)
+    GameServer.broadcastStateToAll() (GameServer.java:175-179)
+    First card shown, remaining cards replaced with face-down ACE/SPADES
+    placeholders. Visibility bypass only during SHOWDOWN/ROUND_OVER.
+    This IS enforced in the network path. NOTE: GameController.updateCards()
+    for local MP mode does NOT hide cards, but GameController.initMultiplayer()
+    is dead code (never called) so this path is unreachable.
+
+  [PASS] Data class hierarchy
+    Evidence: Dealer extends Player, Player uses Hand, Hand uses Card,
+              GameState aggregates all.
+    Rank/Suit/GameMode/GamePhase/GameResult/PlayerAction enums are well-
+    structured. All model classes implement Serializable with serialVersionUID.
+    Inheritance is meaningful: Dealer adds shouldHit() and soft-17 detection.
+
+  [PARTIAL] JavaFX MVC separation
+    Evidence: engine/, model/, controller/, view/ packages
+    Clean physical separation of concerns: engine holds all business logic,
+    model holds data, controller wires engine to UI, view has custom components.
+    ISSUE 1: GameController.onHit() directly accesses the deck from the
+    controller layer (engine.getGameState().getDeck().drawCard()), which is
+    a clear MVC violation — game state manipulation belongs in the engine.
+    ISSUE 2: handlePostPlayerTurn() in GameController (GameController.java:340)
+    contains game flow decision logic (which phase to trigger) that arguably
+    belongs in the engine.
+    ISSUE 3: GameController.initMultiplayer() (lines 108-119) is dead code —
+    it is never called from any reachable path. MainMenuController routes MP
+    to LobbyController → MultiplayerGameController. This dead method creates
+    confusion about which controller handles MP.
+
+  [PARTIAL] JavaFX Properties and ObservableList for change notification
+    Evidence: GameConfig.java (all fields are IntegerProperty, BooleanProperty,
+              StringProperty with proper xxxProperty() accessors)
+    Evidence: DealerPlayTask usage in GameController.java:357
+              `dealerTask.messageProperty().addListener(...)`
+    ISSUE (critical): The main model classes — Player, Hand, GameState — use
+    plain int and ArrayList<Card>, NOT JavaFX properties or ObservableList.
+    There are ZERO bindings between model state (player chips, hand cards,
+    game phase) and the UI labels/card areas. Everything is done via a single
+    manual `updateUI()` refresh call after each action.
+    GameConfig has proper JavaFX properties but they are NOT bound to the
+    Settings UI spinners — SettingsController manually reads/writes values
+    with `spnDecks.getValueFactory().setValue(config.getNumberOfDecks())`.
+    The only actual property listener is `dealerTask.messageProperty()`, which
+    is a Task property, not a model property.
+    The spec explicitly requires "napredne i automatizirane mehanizme
+    obavještavanja" (advanced automated change notification). This is the
+    single largest gap in I1/I2/I3.
+
+  [MISSING] ObservableList used for hand/card binding
+    No ObservableList<Card> or ObservableList<String> is used anywhere in
+    game flow. HandView.updateCards() clears children and rebuilds CardView
+    nodes from scratch on every call. There is no FX list binding from
+    hand.getCards() to the UI display.
+
+
+  I4 — Multithreading [~2/14 pts at risk]
+  ──────────────────────────────────────────────────────────────────────────────
+
+  [PASS] JavaFX Application Thread never blocked
+    DealerPlayTask and GameSaveTask both extend javafx.concurrent.Task.
+    Their call() methods run on the background pool. Thread.sleep() is only
+    inside DealerPlayTask.call() (background thread). GameServer.start()
+    blocks but is submitted to AppExecutorService.submit(), not FX thread.
+
+  [PASS] ExecutorService / Task / Service used
+    Evidence: AppExecutorService.java — CachedThreadPool + ScheduledExecutorService
+    DealerPlayTask extends Task<Void>, GameSaveTask extends Task<Boolean>.
+    Both submitted via AppExecutorService.getInstance().submit().
+    Graceful shutdown in BlackjackApplication.stop().
+
+  [PASS] Dealer AI async with delays between draws
+    Evidence: DealerPlayTask.call() (DealerPlayTask.java:33-77)
+    Hole card reveal with delayMs/2 pause. Each card draw followed by
+    Thread.sleep(delayMs). updateMessage() updates Task's messageProperty
+    which is observed by the FX thread via listener.
+
+  [PASS] Platform.runLater() used correctly
+    GameController.handlePostPlayerTurn(): DealerPlayTask callbacks wrapped.
+    LobbyController: all network callbacks wrapped.
+    MultiplayerGameController: server messages dispatched via runLater.
+    ChatPolling: Platform.runLater per batch of new messages.
+
+  [PASS] Chat polling on ScheduledExecutorService
+    Evidence: LobbyController.startChatPolling(), MultiplayerGameController.startChatPolling()
+    scheduleAtFixedRate() with 500ms interval. New messages batched and
+    dispatched to FX thread via Platform.runLater().
+
+  [PARTIAL] Shared state synchronization
+    Evidence: DealerPlayTask.call() modifies dealer.getHand() (ArrayList)
+    on the background thread. Between `dealer.getHand().addCard(card)` and
+    the `Platform.runLater(this::updateUI)` that follows, the FX thread
+    could theoretically read the hand list. ArrayList is not thread-safe.
+    In practice this is unlikely to cause visible corruption because the
+    runLater is posted right after the add, but it is technically an
+    unsynchronized concurrent read/write on a non-thread-safe collection.
+    GameServer.handleMessage() is correctly synchronized. ClientHandler
+    sendMessage() uses synchronized(out). AppExecutorService is synchronized.
+
+
+  I5 — Serialization + Reflection [0/14 pts at risk]
+  ──────────────────────────────────────────────────────────────────────────────
+
+  [PASS] Full game state serializable to disk
+    Evidence: GameStateSerializer.saveGame() (ObjectOutputStream),
+              SaveManager.saveToSlot() with 5 slots
+    All model classes: Card, Deck, Hand, Player, Dealer, GameState, all enums
+    implement Serializable with serialVersionUID = 1L.
+    GameSaveTask saves asynchronously off the FX thread.
+
+  [PASS] Deserialization restores playable state
+    Evidence: GameStateSerializer.loadGame() (ObjectInputStream),
+              GameEngine(GameConfig, GameState) constructor (GameEngine.java:47-51),
+              GameController.initFromSavedState()
+    Restored GameState is passed directly to GameEngine constructor which
+    also creates a new TurnManager from that state, restoring turn order.
+    UI initialized based on saved mode (SP vs MP labels).
+
+  [PASS] Edge cases: mid-round and split saves
+    GamePhase is part of GameState — mid-round phase is preserved.
+    Player.splitHand is a serialized field — split state survives save/load.
+    MP mode save is available via MultiplayerGameController.onSaveGame()
+    (auto-saves to slot 1).
+
+  [PASS] Reflection API generates documentation
+    Evidence: ReflectionDocGenerator.generateDocumentation() (full Reflection API)
+    Uses getDeclaredFields(), getDeclaredConstructors(), getDeclaredMethods(),
+    getAnnotation(Documented.class), getModifiers(), getInterfaces(),
+    getSuperclass(), getEnumConstants().
+    @Documented annotation has RUNTIME retention — survives to reflection.
+    Applied to 6 key business logic methods across BlackjackRules and
+    GameEngine (calculateScore, determineWinnerSP, determineWinnerMP,
+    startNewRound, dealInitialCards, resolveShowdown, getVisibleStateForPlayer).
+
+  [PASS] Reflection output runs and produces file
+    Evidence: LoadGameController.onGenerateDocs() (LoadGameController.java:99-137)
+    Called from a real UI button on the load-game screen. Passes 15 classes.
+    Output written to "documentation.txt". A 15,690-byte documentation.txt
+    exists in the project root, confirming this has already been executed.
+
+
+  I6 — Networking [~7/14 pts at risk]
+  ──────────────────────────────────────────────────────────────────────────────
+
+  [PASS] TCP socket communication for player moves
+    Evidence: GameServer.java (ServerSocket), GameClient.java (Socket)
+    Serialized GameMessage objects sent over ObjectOutputStream.
+    MessageType enum covers: BET, PLAYER_ACTION (HIT/STAND/DOUBLE_DOWN/SPLIT),
+    STATE_UPDATE, SHOWDOWN, GAME_START, CHAT, PLAYER_JOINED, PLAYER_LEFT,
+    DEAL_REQUEST, HEARTBEAT. Full bidirectional protocol implemented.
+
+  [PASS] Socket communication on threads
+    GameServer.start() called from AppExecutorService.submit() (background).
+    Each ClientHandler.run() on a named daemon thread ("Client-N").
+    GameClient.listenForMessages() on a named daemon thread ("Client-Listener").
+    No socket I/O on the JavaFX Application Thread.
+
+  [PASS] RMI — in-game chat
+    Evidence: ChatService (Remote interface), ChatServiceImpl
+              (extends UnicastRemoteObject), RmiServiceManager.bindChatService()
+    CopyOnWriteArrayList ensures thread-safe message storage.
+    getMessages(sinceIndex) for incremental polling. Used in both
+    LobbyController and MultiplayerGameController with Platform.runLater().
+
+  [PASS] RMI — opponent/player discovery (matchmaking)
+    Evidence: MatchmakingService (Remote interface), MatchmakingServiceImpl,
+              RmiServiceManager.bindMatchmakingService(),
+              LobbyController.onConnect() → lookupMatchmakingService()
+    Joiner calls registerPlayer(), getGameServerPort(), then connects TCP.
+    Host starts registry via RmiServiceManager.startRegistry(1099) and binds
+    both services. Full matchmaking flow working.
+
+  [PASS] RMI callbacks marshalled to FX thread
+    All RMI calls happen on AppExecutorService background threads.
+    All UI updates from RMI results wrapped in Platform.runLater().
+
+  [PASS] Network isolated from single player
+    Single player: GameController.initSinglePlayer() → GameEngine(SINGLE_PLAYER)
+    — no network code touched.
+    Multiplayer: LobbyController → GameServer/GameClient/RMI only.
+
+  [MISSING] JNDI (javax.naming API) not used
+    Evidence: module-info.java declares `requires java.naming;`
+    but no Java source file imports javax.naming.* anywhere.
+    RmiServiceManager uses only java.rmi.registry.LocateRegistry and
+    java.rmi.registry.Registry. The JNDI-style lookup would require
+    javax.naming.InitialContext or similar. The spec explicitly names
+    "JNDI i RMI tehnologijama" as separate required technologies.
+    Current implementation uses pure RMI registry, not JNDI.
+    The `requires java.naming` declaration suggests the intent existed
+    but was never implemented.
+
+
+  I7 — XML Configuration [~2/14 pts at risk]
+  ──────────────────────────────────────────────────────────────────────────────
+
+  [PASS] XML config file exists with meaningful content
+    Evidence: game-config.xml with number-of-decks, starting-balance,
+    min-bet, max-bet, dealer-hits-soft17, server-host, server-port, max-players.
+    All values are read and used in the game engine and network layer.
+
+  [PASS] SAX used for reading
+    Evidence: XmlConfigReader.java — SAXParserFactory, SAXParser,
+              DefaultHandler subclass (GameConfigHandler)
+    Correctly handles startElement, characters, endElement lifecycle.
+    All 8 config fields parsed. No third-party XML library used.
+
+  [PASS] DOM used for writing
+    Evidence: XmlConfigWriter.java — DocumentBuilderFactory, DocumentBuilder,
+              Document, Element, Transformer with INDENT output property.
+    Writes two sections (game-settings, network-settings) with all 8 fields.
+    No third-party XML library used. Both SAX (read) and DOM (write) are
+    used as the spec requires.
+
+  [PARTIAL] Config dynamically read at startup
+    Evidence: SettingsController.initialize(), GameController.loadConfig(),
+              LobbyController.loadConfig()
+    ISSUE: All three methods look for `new File("config/game-config.xml")`
+    (filesystem path relative to working directory). The bundled XML resource
+    at `src/main/resources/.../config/game-config.xml` is a classpath resource
+    and is NEVER loaded via Class.getResourceAsStream() or similar.
+    On a fresh installation where the user has not yet visited Settings→Save,
+    the file `config/game-config.xml` does not exist on the filesystem, and
+    all three callers silently fall back to `new GameConfig()` defaults.
+    The bundled XML resource serves no functional purpose in the running app.
+    Once Settings→Save has been invoked once, the filesystem file is created
+    and subsequent launches read it correctly.
+
+  [PASS] Config written back at runtime
+    Evidence: SettingsController.onSave() → XmlConfigWriter.saveConfig()
+    Reads all Spinner/CheckBox values from UI, creates GameConfig POJO,
+    writes XML to filesystem. Path creation (mkdirs) handled. Triggered
+    by a real UI button in the settings screen.
+
+
+  ================================================================================
+  CRITICAL ISSUES (point deductions regardless of category)
+  ================================================================================
+
+  1. MISSING ObservableList / Property bindings between model and UI [I1/I2/I3]
+     The spec requires "napredne i automatizirane mehanizme obavještavanja"
+     (advanced automated change notification). Player, Hand, and GameState
+     use plain int and ArrayList — NOT JavaFX properties or ObservableList.
+     GameConfig has proper JavaFX properties but they are never bound to UI
+     controls — SettingsController manually reads/writes values.
+     The only live property listener is `dealerTask.messageProperty()`.
+     Everything else uses a manual updateUI() call. This is the pattern
+     explicitly NOT required by the spec. Fix: add IntegerProperty to Player
+     (chips, currentBet), ObservableList<Card> to Hand, and bind them to
+     their corresponding UI Labels.
+
+  2. MISSING JNDI implementation [I6]
+     module-info.java declares `requires java.naming` but javax.naming.*
+     is never imported or used. RmiServiceManager uses only
+     java.rmi.registry.LocateRegistry and Registry. The spec names JNDI
+     and RMI as separate requirements. JNDI is completely absent.
+     Fix: replace at minimum one LocateRegistry.getRegistry() call with
+     an InitialContext lookup using a rmi:// URL, or add a JNDI provider
+     lookup for the chat/matchmaking service discovery.
+
+  3. GameController.initMultiplayer() is dead code [I1/I2/I3]
+     MainMenuController routes multiplayer to LobbyController, which
+     transitions to MultiplayerGameController. GameController.initMultiplayer()
+     (lines 108-119) is never called from any reachable code path.
+     The method takes a sharedEngine with no card hiding — if it were
+     reachable it would expose opponent cards. Not a runtime bug but signals
+     incomplete integration between the two multiplayer controllers.
+
+  4. GameController.onHit() bypasses engine for split hand cards [I1/I2/I3]
+     Lines 186-190: `engine.getGameState().getDeck().drawCard()` called
+     directly in the controller for split hands, bypassing GameEngine.playerHit().
+     The engine's turn validation and state management are circumvented.
+     This is both an MVC violation and a potential correctness risk.
+
+  5. No Thread.sleep() duration argument — DealerPlayTask constructor only
+     Issue is minor but: the delay value (1200ms) is hardcoded at the call
+     site in GameController (line 355). This is not configurable via XML.

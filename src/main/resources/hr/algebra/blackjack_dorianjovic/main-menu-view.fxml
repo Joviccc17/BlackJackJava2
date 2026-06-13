@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.Button?>
+<?import javafx.scene.control.Label?>
+<?import javafx.scene.layout.VBox?>
+<?import javafx.scene.text.Font?>
+
+<VBox alignment="CENTER" spacing="20.0"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="hr.algebra.blackjack_dorianjovic.controller.MainMenuController"
+      style="-fx-background-color: #1a5c2a;">
+    <padding>
+        <Insets bottom="40.0" left="40.0" right="40.0" top="40.0"/>
+    </padding>
+
+    <Label text="♠ BlackJack ♥" style="-fx-text-fill: white;">
+        <font>
+            <Font size="48.0" name="System Bold"/>
+        </font>
+    </Label>
+
+    <Label text="Dorian Jovic" style="-fx-text-fill: #cccccc;">
+        <font>
+            <Font size="16.0"/>
+        </font>
+    </Label>
+
+    <VBox alignment="CENTER" spacing="12.0">
+        <padding>
+            <Insets top="30.0"/>
+        </padding>
+
+        <Button text="Single Player" onAction="#onSinglePlayer"
+                prefWidth="250" prefHeight="45"
+                style="-fx-background-color: #2d8a4e; -fx-text-fill: white; -fx-font-size: 16px; -fx-cursor: hand;"/>
+
+        <Button text="Host Multiplayer" onAction="#onHostMultiplayer"
+                prefWidth="250" prefHeight="45"
+                style="-fx-background-color: #2d8a4e; -fx-text-fill: white; -fx-font-size: 16px; -fx-cursor: hand;"/>
+
+        <Button text="Join Multiplayer" onAction="#onJoinMultiplayer"
+                prefWidth="250" prefHeight="45"
+                style="-fx-background-color: #2d8a4e; -fx-text-fill: white; -fx-font-size: 16px; -fx-cursor: hand;"/>
+
+        <Button text="Load Game" onAction="#onLoadGame"
+                prefWidth="250" prefHeight="45"
+                style="-fx-background-color: #2d8a4e; -fx-text-fill: white; -fx-font-size: 16px; -fx-cursor: hand;"/>
+
+        <Button text="Settings" onAction="#onSettings"
+                prefWidth="250" prefHeight="45"
+                style="-fx-background-color: #2d8a4e; -fx-text-fill: white; -fx-font-size: 16px; -fx-cursor: hand;"/>
+
+        <Button text="Exit" onAction="#onExit"
+                prefWidth="250" prefHeight="45"
+                style="-fx-background-color: #8a2d2d; -fx-text-fill: white; -fx-font-size: 16px; -fx-cursor: hand;"/>
+    </VBox>
+</VBox>
+

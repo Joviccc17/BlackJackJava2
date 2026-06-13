@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<blackjack-config>
+    <game-settings>
+        <number-of-decks>6</number-of-decks>
+        <starting-balance>1000</starting-balance>
+        <min-bet>10</min-bet>
+        <max-bet>500</max-bet>
+        <dealer-hits-soft17>false</dealer-hits-soft17>
+    </game-settings>
+    <network-settings>
+        <server-host>localhost</server-host>
+        <server-port>12345</server-port>
+        <max-players>2</max-players>
+    </network-settings>
+</blackjack-config>
+

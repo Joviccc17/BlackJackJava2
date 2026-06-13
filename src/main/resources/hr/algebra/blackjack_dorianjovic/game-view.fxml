@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+<?import javafx.scene.text.Font?>
+
+<BorderPane xmlns:fx="http://javafx.com/fxml"
+            fx:controller="hr.algebra.blackjack_dorianjovic.controller.GameController"
+            style="-fx-background-color: #1a5c2a;">
+
+    <!-- TOP: Dealer/Opponent area -->
+    <top>
+        <VBox alignment="CENTER" spacing="10" style="-fx-padding: 20;">
+            <Label fx:id="lblOpponentName" text="Dealer" style="-fx-text-fill: #cccccc; -fx-font-size: 18px;"/>
+            <HBox fx:id="opponentCardArea" alignment="CENTER" spacing="10" minHeight="140"/>
+            <Label fx:id="lblOpponentScore" text="Score: ?" style="-fx-text-fill: white; -fx-font-size: 16px;"/>
+        </VBox>
+    </top>
+
+    <!-- CENTER: Game info + messages -->
+    <center>
+        <VBox alignment="CENTER" spacing="15">
+            <!-- Status / Result message -->
+            <Label fx:id="lblStatus" text="Place your bet to start"
+                   style="-fx-text-fill: white; -fx-font-size: 20px; -fx-font-weight: bold;"/>
+
+            <!-- Pot display (MP only) -->
+            <Label fx:id="lblPot" text="" style="-fx-text-fill: gold; -fx-font-size: 16px;"/>
+
+            <!-- Betting controls -->
+            <HBox fx:id="bettingArea" alignment="CENTER" spacing="10" visible="true">
+                <Label text="Bet:" style="-fx-text-fill: white; -fx-font-size: 14px;"/>
+                <TextField fx:id="txtBetAmount" promptText="Enter bet" prefWidth="100"
+                           style="-fx-font-size: 14px;"/>
+                <Button fx:id="btnPlaceBet" text="Place Bet" onAction="#onPlaceBet"
+                        style="-fx-background-color: #d4a017; -fx-text-fill: white; -fx-font-size: 14px; -fx-cursor: hand;"/>
+            </HBox>
+
+            <!-- Player's cards (main hand + split hand side by side) -->
+            <VBox alignment="CENTER" spacing="10" style="-fx-padding: 10 0 0 0;">
+                <Label fx:id="lblPlayerName" text="Player" style="-fx-text-fill: #cccccc; -fx-font-size: 18px;"/>
+                <HBox alignment="CENTER" spacing="30">
+                    <!-- Main hand -->
+                    <VBox alignment="CENTER" spacing="5">
+                        <Label fx:id="lblHand1Label" text="" style="-fx-text-fill: #aaffaa; -fx-font-size: 13px;"/>
+                        <HBox fx:id="playerCardArea" alignment="CENTER" spacing="10" minHeight="140"/>
+                        <Label fx:id="lblPlayerScore" text="Score: 0" style="-fx-text-fill: white; -fx-font-size: 16px;"/>
+                    </VBox>
+                    <!-- Split hand (hidden until split occurs) -->
+                    <VBox fx:id="splitHandArea" alignment="CENTER" spacing="5" visible="false">
+                        <Label fx:id="lblHand2Label" text="" style="-fx-text-fill: #aaffaa; -fx-font-size: 13px;"/>
+                        <HBox fx:id="splitCardArea" alignment="CENTER" spacing="10" minHeight="140"/>
+                        <Label fx:id="lblSplitScore" text="Score: 0" style="-fx-text-fill: white; -fx-font-size: 16px;"/>
+                    </VBox>
+                </HBox>
+            </VBox>
+
+            <!-- Action buttons -->
+            <HBox fx:id="actionButtons" alignment="CENTER" spacing="12" visible="false">
+                <Button fx:id="btnHit" text="Hit" onAction="#onHit" prefWidth="100" prefHeight="40"
+                        style="-fx-background-color: #2d8a4e; -fx-text-fill: white; -fx-font-size: 15px; -fx-cursor: hand;"/>
+                <Button fx:id="btnStand" text="Stand" onAction="#onStand" prefWidth="100" prefHeight="40"
+                        style="-fx-background-color: #c0392b; -fx-text-fill: white; -fx-font-size: 15px; -fx-cursor: hand;"/>
+                <Button fx:id="btnDoubleDown" text="Double" onAction="#onDoubleDown" prefWidth="100" prefHeight="40"
+                        style="-fx-background-color: #8e44ad; -fx-text-fill: white; -fx-font-size: 15px; -fx-cursor: hand;"/>
+                <Button fx:id="btnSplit" text="Split" onAction="#onSplit" prefWidth="100" prefHeight="40"
+                        style="-fx-background-color: #2980b9; -fx-text-fill: white; -fx-font-size: 15px; -fx-cursor: hand;"/>
+            </HBox>
+
+            <!-- New Round / Back to Menu buttons -->
+            <HBox fx:id="roundOverButtons" alignment="CENTER" spacing="12" visible="false">
+                <Button fx:id="btnNewRound" text="New Round" onAction="#onNewRound" prefWidth="140" prefHeight="40"
+                        style="-fx-background-color: #2d8a4e; -fx-text-fill: white; -fx-font-size: 15px; -fx-cursor: hand;"/>
+                <Button fx:id="btnSaveGame" text="Save Game" onAction="#onSaveGame" prefWidth="140" prefHeight="40"
+                        style="-fx-background-color: #d4a017; -fx-text-fill: white; -fx-font-size: 15px; -fx-cursor: hand;"/>
+                <Button fx:id="btnBackToMenu" text="Main Menu" onAction="#onBackToMenu" prefWidth="140" prefHeight="40"
+                        style="-fx-background-color: #7f8c8d; -fx-text-fill: white; -fx-font-size: 15px; -fx-cursor: hand;"/>
+            </HBox>
+        </VBox>
+    </center>
+
+    <!-- BOTTOM: Player info bar -->
+    <bottom>
+        <HBox alignment="CENTER" spacing="30" style="-fx-padding: 15; -fx-background-color: #145224;">
+            <Label fx:id="lblChips" text="Chips: 1000" style="-fx-text-fill: gold; -fx-font-size: 16px; -fx-font-weight: bold;"/>
+            <Label fx:id="lblCurrentBet" text="Bet: 0" style="-fx-text-fill: white; -fx-font-size: 14px;"/>
+            <Label fx:id="lblRound" text="Round: 0" style="-fx-text-fill: #aaaaaa; -fx-font-size: 14px;"/>
+        </HBox>
+    </bottom>
+
+</BorderPane>
+

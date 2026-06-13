@@ -1,0 +1,76 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<?import javafx.geometry.Insets?>
+<?import javafx.scene.control.*?>
+<?import javafx.scene.layout.*?>
+
+<VBox alignment="CENTER" spacing="15"
+      xmlns:fx="http://javafx.com/fxml"
+      fx:controller="hr.algebra.blackjack_dorianjovic.controller.SettingsController"
+      style="-fx-background-color: #1a5c2a;">
+    <padding>
+        <Insets bottom="30" left="50" right="50" top="30"/>
+    </padding>
+
+    <Label text="⚙ Settings" style="-fx-text-fill: white; -fx-font-size: 32px; -fx-font-weight: bold;"/>
+
+    <GridPane hgap="15" vgap="12" alignment="CENTER" style="-fx-padding: 20;">
+        <!-- Number of Decks -->
+        <Label text="Number of Decks:" style="-fx-text-fill: white; -fx-font-size: 14px;"
+               GridPane.columnIndex="0" GridPane.rowIndex="0"/>
+        <Spinner fx:id="spnDecks" prefWidth="120"
+                 GridPane.columnIndex="1" GridPane.rowIndex="0"/>
+
+        <!-- Starting Balance -->
+        <Label text="Starting Balance:" style="-fx-text-fill: white; -fx-font-size: 14px;"
+               GridPane.columnIndex="0" GridPane.rowIndex="1"/>
+        <Spinner fx:id="spnBalance" prefWidth="120"
+                 GridPane.columnIndex="1" GridPane.rowIndex="1"/>
+
+        <!-- Min Bet -->
+        <Label text="Minimum Bet:" style="-fx-text-fill: white; -fx-font-size: 14px;"
+               GridPane.columnIndex="0" GridPane.rowIndex="2"/>
+        <Spinner fx:id="spnMinBet" prefWidth="120"
+                 GridPane.columnIndex="1" GridPane.rowIndex="2"/>
+
+        <!-- Max Bet -->
+        <Label text="Maximum Bet:" style="-fx-text-fill: white; -fx-font-size: 14px;"
+               GridPane.columnIndex="0" GridPane.rowIndex="3"/>
+        <Spinner fx:id="spnMaxBet" prefWidth="120"
+                 GridPane.columnIndex="1" GridPane.rowIndex="3"/>
+
+        <!-- Dealer Hits Soft 17 -->
+        <Label text="Dealer Hits Soft 17:" style="-fx-text-fill: white; -fx-font-size: 14px;"
+               GridPane.columnIndex="0" GridPane.rowIndex="4"/>
+        <CheckBox fx:id="chkDealerHitsSoft17"
+                  GridPane.columnIndex="1" GridPane.rowIndex="4"/>
+
+        <!-- Server Host -->
+        <Label text="Server Host:" style="-fx-text-fill: white; -fx-font-size: 14px;"
+               GridPane.columnIndex="0" GridPane.rowIndex="5"/>
+        <TextField fx:id="txtServerHost" prefWidth="120"
+                   GridPane.columnIndex="1" GridPane.rowIndex="5"/>
+
+        <!-- Server Port -->
+        <Label text="Server Port:" style="-fx-text-fill: white; -fx-font-size: 14px;"
+               GridPane.columnIndex="0" GridPane.rowIndex="6"/>
+        <Spinner fx:id="spnServerPort" prefWidth="120"
+                 GridPane.columnIndex="1" GridPane.rowIndex="6"/>
+
+        <!-- Max Players -->
+        <Label text="Max Players:" style="-fx-text-fill: white; -fx-font-size: 14px;"
+               GridPane.columnIndex="0" GridPane.rowIndex="7"/>
+        <Spinner fx:id="spnMaxPlayers" prefWidth="120"
+                 GridPane.columnIndex="1" GridPane.rowIndex="7"/>
+    </GridPane>
+
+    <HBox alignment="CENTER" spacing="15">
+        <Button text="Save Settings" onAction="#onSave" prefWidth="150" prefHeight="40"
+                style="-fx-background-color: #2d8a4e; -fx-text-fill: white; -fx-font-size: 14px; -fx-cursor: hand;"/>
+        <Button text="Back" onAction="#onBack" prefWidth="150" prefHeight="40"
+                style="-fx-background-color: #7f8c8d; -fx-text-fill: white; -fx-font-size: 14px; -fx-cursor: hand;"/>
+    </HBox>
+
+    <Label fx:id="lblSettingsStatus" text="" style="-fx-text-fill: #aaffaa; -fx-font-size: 13px;"/>
+</VBox>
+
