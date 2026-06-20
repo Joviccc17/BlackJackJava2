@@ -5,10 +5,6 @@ import hr.algebra.blackjack_dorianjovic.model.PlayerAction;
 
 import java.io.Serializable;
 
-/**
- * Serializable message wrapper sent between server and clients over TCP.
- * Contains the message type, optional payload data, and sender info.
- */
 public class GameMessage implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -17,7 +13,6 @@ public class GameMessage implements Serializable {
     private final int playerId;
     private final String senderName;
 
-    // Optional payload fields — only the relevant ones are set per message type
     private PlayerAction action;
     private GameState gameState;
     private String chatText;
@@ -28,8 +23,6 @@ public class GameMessage implements Serializable {
         this.playerId = playerId;
         this.senderName = senderName;
     }
-
-    // --- Static factory methods for common message types ---
 
     public static GameMessage playerAction(int playerId, String name, PlayerAction action) {
         GameMessage msg = new GameMessage(MessageType.PLAYER_ACTION, playerId, name);
@@ -77,14 +70,11 @@ public class GameMessage implements Serializable {
         return msg;
     }
 
-    // --- Getters ---
-
     public MessageType getType() { return type; }
     public int getPlayerId() { return playerId; }
     public String getSenderName() { return senderName; }
     public PlayerAction getAction() { return action; }
     public GameState getGameState() { return gameState; }
-    public String getChatText() { return chatText; }
     public int getBetAmount() { return betAmount; }
 
     @Override
@@ -92,4 +82,3 @@ public class GameMessage implements Serializable {
         return "GameMessage{type=" + type + ", playerId=" + playerId + ", sender=" + senderName + "}";
     }
 }
-

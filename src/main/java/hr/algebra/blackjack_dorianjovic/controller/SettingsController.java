@@ -10,10 +10,6 @@ import javafx.scene.control.*;
 import java.io.File;
 import java.io.IOException;
 
-/**
- * Controller for the settings screen.
- * Loads/saves game configuration from/to XML using SAX (read) and DOM (write).
- */
 public class SettingsController {
 
     @FXML private Spinner<Integer> spnDecks;
@@ -33,7 +29,7 @@ public class SettingsController {
 
     @FXML
     public void initialize() {
-        // Setup spinners with value factories
+
         spnDecks.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 8, 6));
         spnBalance.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(100, 100000, 1000, 100));
         spnMinBet.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(1, 1000, 10, 5));
@@ -41,14 +37,9 @@ public class SettingsController {
         spnServerPort.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(1024, 65535, 12345));
         spnMaxPlayers.setValueFactory(new SpinnerValueFactory.IntegerSpinnerValueFactory(2, 6, 2));
 
-        // Load existing config
         loadConfig();
     }
 
-    /**
-     * Loads configuration from XML file using SAX parser,
-     * then populates the UI controls.
-     */
     private void loadConfig() {
         XmlConfigReader reader = new XmlConfigReader();
         try {
@@ -63,7 +54,6 @@ public class SettingsController {
             lblSettingsStatus.setText("Failed to load config, using defaults.");
         }
 
-        // Populate UI from config
         spnDecks.getValueFactory().setValue(config.getNumberOfDecks());
         spnBalance.getValueFactory().setValue(config.getStartingBalance());
         spnMinBet.getValueFactory().setValue(config.getMinBet());
@@ -73,7 +63,6 @@ public class SettingsController {
         spnServerPort.getValueFactory().setValue(config.getServerPort());
         spnMaxPlayers.getValueFactory().setValue(config.getMaxPlayers());
 
-        // Wire spinner/checkbox changes directly into GameConfig properties
         spnDecks.valueProperty().addListener((o, oldV, newV) -> config.setNumberOfDecks(newV));
         spnBalance.valueProperty().addListener((o, oldV, newV) -> config.setStartingBalance(newV));
         spnMinBet.valueProperty().addListener((o, oldV, newV) -> config.setMinBet(newV));
@@ -84,12 +73,9 @@ public class SettingsController {
         spnMaxPlayers.valueProperty().addListener((o, oldV, newV) -> config.setMaxPlayers(newV));
     }
 
-    /**
-     * Saves the current settings to XML using DOM writer.
-     */
     @FXML
     private void onSave() {
-        // config is kept in sync by property listeners — write it directly
+
         try {
             File configFile = new File(CONFIG_FILE_PATH);
             new XmlConfigWriter().saveConfig(config, configFile);
@@ -108,4 +94,3 @@ public class SettingsController {
         }
     }
 }
-

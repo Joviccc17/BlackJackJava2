@@ -3,7 +3,6 @@ package hr.algebra.blackjack_dorianjovic.serialization;
 import hr.algebra.blackjack_dorianjovic.model.GameState;
 
 import java.io.IOException;
-import java.nio.file.DirectoryStream;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -12,10 +11,6 @@ import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 
-/**
- * Manages save files in a "saves/" directory.
- * Provides methods to list, save, load, and delete saved games.
- */
 public class SaveManager {
 
     private static final String SAVES_DIR = "saves";
@@ -30,9 +25,6 @@ public class SaveManager {
         ensureSavesDirectory();
     }
 
-    /**
-     * Creates the saves directory if it doesn't exist.
-     */
     private void ensureSavesDirectory() {
         Path savesPath = Paths.get(SAVES_DIR);
         if (!Files.exists(savesPath)) {
@@ -44,13 +36,6 @@ public class SaveManager {
         }
     }
 
-    /**
-     * Saves the current game state to the specified slot.
-     *
-     * @param gameState the game state to save
-     * @param slot      the slot number (1 to MAX_SAVE_SLOTS)
-     * @throws IOException if saving fails
-     */
     public void saveToSlot(GameState gameState, int slot) throws IOException {
         if (slot < 1 || slot > MAX_SAVE_SLOTS) {
             throw new IllegalArgumentException("Slot must be between 1 and " + MAX_SAVE_SLOTS);
@@ -61,14 +46,6 @@ public class SaveManager {
         serializer.saveGame(gameState, filePath);
     }
 
-    /**
-     * Loads a game state from the specified slot.
-     *
-     * @param slot the slot number to load from
-     * @return the restored GameState
-     * @throws IOException            if loading fails
-     * @throws ClassNotFoundException if deserialization fails
-     */
     public GameState loadFromSlot(int slot) throws IOException, ClassNotFoundException {
         Path filePath = getSlotPath(slot);
         if (!Files.exists(filePath)) {
@@ -77,9 +54,6 @@ public class SaveManager {
         return serializer.loadGame(filePath);
     }
 
-    /**
-     * Returns a list of all available save slots with metadata.
-     */
     public List<SaveSlot> getAvailableSaves() {
         List<SaveSlot> saves = new ArrayList<>();
 
@@ -98,7 +72,7 @@ public class SaveManager {
                             filePath
                     ));
                 } catch (Exception e) {
-                    // Corrupted save file — skip it
+
                     System.err.println("Corrupted save in slot " + slot + ": " + e.getMessage());
                 }
             }
@@ -108,9 +82,6 @@ public class SaveManager {
         return saves;
     }
 
-    /**
-     * Deletes the save in the specified slot.
-     */
     public boolean deleteSlot(int slot) {
         try {
             Path filePath = getSlotPath(slot);
@@ -120,22 +91,7 @@ public class SaveManager {
         }
     }
 
-    /**
-     * Returns true if a save exists in the given slot.
-     */
-    public boolean slotExists(int slot) {
-        return Files.exists(getSlotPath(slot));
-    }
-
-    /**
-     * Returns the file path for a given slot number.
-     */
     private Path getSlotPath(int slot) {
         return Paths.get(SAVES_DIR, SAVE_FILE_PREFIX + slot + SAVE_FILE_EXTENSION);
     }
-
-    public int getMaxSaveSlots() {
-        return MAX_SAVE_SLOTS;
-    }
 }
-

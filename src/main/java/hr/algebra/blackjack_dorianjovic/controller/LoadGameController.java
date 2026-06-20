@@ -12,10 +12,6 @@ import javafx.scene.control.*;
 import java.io.IOException;
 import java.util.List;
 
-/**
- * Controller for the load game screen.
- * Lists available save slots and allows loading, deleting, and generating documentation.
- */
 public class LoadGameController {
 
     @FXML private Label lblLoadStatus;
@@ -28,9 +24,6 @@ public class LoadGameController {
         refreshSaveList();
     }
 
-    /**
-     * Refreshes the list of available save slots.
-     */
     private void refreshSaveList() {
         lstSaves.getItems().clear();
         List<SaveSlot> saves = saveManager.getAvailableSaves();
@@ -43,9 +36,6 @@ public class LoadGameController {
         }
     }
 
-    /**
-     * Loads the selected save slot and opens the game view.
-     */
     @FXML
     private void onLoad() {
         SaveSlot selected = lstSaves.getSelectionModel().getSelectedItem();
@@ -67,9 +57,6 @@ public class LoadGameController {
         }
     }
 
-    /**
-     * Deletes the selected save slot.
-     */
     @FXML
     private void onDelete() {
         SaveSlot selected = lstSaves.getSelectionModel().getSelectedItem();
@@ -93,15 +80,12 @@ public class LoadGameController {
         });
     }
 
-    /**
-     * Generates documentation using the Reflection API and saves it to a file.
-     */
     @FXML
     private void onGenerateDocs() {
         try {
             ReflectionDocGenerator generator = new ReflectionDocGenerator();
             generator.generateDocumentation("documentation.txt",
-                    // Model classes
+
                     Card.class,
                     Deck.class,
                     Hand.class,
@@ -114,7 +98,7 @@ public class LoadGameController {
                     GamePhase.class,
                     GameResult.class,
                     PlayerAction.class,
-                    // Engine classes
+
                     BlackjackRules.class,
                     GameEngine.class,
                     TurnManager.class
@@ -145,4 +129,3 @@ public class LoadGameController {
         }
     }
 }
-

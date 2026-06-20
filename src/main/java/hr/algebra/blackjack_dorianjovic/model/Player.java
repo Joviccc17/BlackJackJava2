@@ -5,11 +5,6 @@ import javafx.beans.property.SimpleIntegerProperty;
 
 import java.io.Serializable;
 
-/**
- * Represents a player in the game (used in both SP and MP modes).
- * Contains name, hand, chip balance, current bet, and optional split hand.
- * chips and currentBet are exposed as JavaFX IntegerProperty for UI binding.
- */
 public class Player implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -20,10 +15,7 @@ public class Player implements Serializable {
     private int chips;
     private int currentBet;
     private int playerId;
-    private boolean isLocal;
 
-    // Transient FX properties — lazy-initialised from backing int fields.
-    // Not serialized; recreated from chips/currentBet on first access after load.
     private transient IntegerProperty chipsProperty;
     private transient IntegerProperty currentBetProperty;
 
@@ -34,23 +26,16 @@ public class Player implements Serializable {
         this.splitHand = null;
         this.currentBet = 0;
         this.playerId = -1;
-        this.isLocal = true;
     }
 
-    // --- Name ---
     public String getName() { return name; }
-    public void setName(String name) { this.name = name; }
 
-    // --- Hand ---
     public Hand getHand() { return hand; }
-    public void setHand(Hand hand) { this.hand = hand; }
 
-    // --- Split Hand ---
     public Hand getSplitHand() { return splitHand; }
     public void setSplitHand(Hand splitHand) { this.splitHand = splitHand; }
     public boolean hasSplit() { return splitHand != null; }
 
-    // --- Chips ---
     public IntegerProperty chipsProperty() {
         if (chipsProperty == null) chipsProperty = new SimpleIntegerProperty(chips);
         return chipsProperty;
@@ -66,7 +51,6 @@ public class Player implements Serializable {
     public void addChips(int amount) { setChips(getChips() + amount); }
     public void removeChips(int amount) { setChips(getChips() - amount); }
 
-    // --- Current Bet ---
     public IntegerProperty currentBetProperty() {
         if (currentBetProperty == null) currentBetProperty = new SimpleIntegerProperty(currentBet);
         return currentBetProperty;
@@ -79,9 +63,6 @@ public class Player implements Serializable {
         currentBetProperty().set(value);
     }
 
-    /**
-     * Places a bet: removes chips and sets the current bet amount.
-     */
     public void placeBet(int amount) {
         if (amount > getChips()) {
             throw new IllegalArgumentException("Insufficient chips. Have: " + getChips() + ", bet: " + amount);
@@ -90,17 +71,9 @@ public class Player implements Serializable {
         setCurrentBet(amount);
     }
 
-    // --- Player ID (for networking) ---
     public int getPlayerId() { return playerId; }
     public void setPlayerId(int playerId) { this.playerId = playerId; }
 
-    // --- Local flag ---
-    public boolean isLocal() { return isLocal; }
-    public void setLocal(boolean local) { isLocal = local; }
-
-    /**
-     * Resets the hand and bet for a new round.
-     */
     public void resetForNewRound() {
         hand.clear();
         splitHand = null;
@@ -112,4 +85,3 @@ public class Player implements Serializable {
         return name + " [chips=" + chips + ", bet=" + currentBet + ", hand=" + hand + "]";
     }
 }
-

@@ -8,14 +8,8 @@ import javax.xml.parsers.SAXParserFactory;
 import java.io.File;
 import java.io.InputStream;
 
-/**
- * Reads GameConfig from an XML file using SAX (event-driven parsing).
- */
 public class XmlConfigReader {
 
-    /**
-     * Parses the given XML file and returns a populated GameConfig.
-     */
     public GameConfig readConfig(File file) throws Exception {
         SAXParserFactory factory = SAXParserFactory.newInstance();
         SAXParser saxParser = factory.newSAXParser();
@@ -26,11 +20,6 @@ public class XmlConfigReader {
         return handler.getConfig();
     }
 
-    /**
-     * Parses a classpath resource (e.g. "/hr/.../config/game-config.xml")
-     * and returns a populated GameConfig. Used as a fallback on first launch
-     * before the user has saved settings to the filesystem.
-     */
     public GameConfig readConfigFromClasspath(String resourcePath) throws Exception {
         try (InputStream in = XmlConfigReader.class.getResourceAsStream(resourcePath)) {
             if (in == null) {
@@ -44,9 +33,6 @@ public class XmlConfigReader {
         }
     }
 
-    /**
-     * SAX DefaultHandler that processes blackjack-config XML elements.
-     */
     private static class GameConfigHandler extends DefaultHandler {
 
         private final GameConfig config = new GameConfig();
@@ -90,4 +76,3 @@ public class XmlConfigReader {
         }
     }
 }
-

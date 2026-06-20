@@ -64,4 +64,3 @@ public class MainMenuController {
         Platform.exit();
     }
 }
-

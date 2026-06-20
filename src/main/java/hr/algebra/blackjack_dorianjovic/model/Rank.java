@@ -2,10 +2,6 @@ package hr.algebra.blackjack_dorianjovic.model;
 
 import java.io.Serializable;
 
-/**
- * Represents card ranks from ACE to KING.
- * ACE has a primary value of 11 and an alternative value of 1.
- */
 public enum Rank implements Serializable {
 
     ACE("A", 11),
@@ -38,17 +34,8 @@ public enum Rank implements Serializable {
         return value;
     }
 
-    /**
-     * Returns the alternative value for Ace (1 instead of 11).
-     * For all other ranks, returns the same value.
-     */
-    public int getAlternativeValue() {
-        return this == ACE ? 1 : value;
-    }
-
     @Override
     public String toString() {
         return displayName;
     }
 }
-

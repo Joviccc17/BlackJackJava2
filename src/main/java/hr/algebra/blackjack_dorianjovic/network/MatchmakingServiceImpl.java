@@ -6,10 +6,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-/**
- * RMI implementation of MatchmakingService.
- * Manages player registration and lobby state.
- */
 public class MatchmakingServiceImpl extends UnicastRemoteObject implements MatchmakingService {
 
     private final List<String> waitingPlayers = new CopyOnWriteArrayList<>();
@@ -34,22 +30,11 @@ public class MatchmakingServiceImpl extends UnicastRemoteObject implements Match
     }
 
     @Override
-    public int getPlayerCount() throws RemoteException {
-        return waitingPlayers.size();
-    }
-
-    @Override
     public int getGameServerPort() throws RemoteException {
         return gameServerPort;
-    }
-
-    @Override
-    public boolean isGameStarted() throws RemoteException {
-        return gameStarted;
     }
 
     public void setGameStarted(boolean gameStarted) {
         this.gameStarted = gameStarted;
     }
 }
-

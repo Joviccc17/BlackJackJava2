@@ -2,12 +2,6 @@ package hr.algebra.blackjack_dorianjovic.engine;
 
 import hr.algebra.blackjack_dorianjovic.model.*;
 
-/**
- * Manages turn order for both game modes.
- *
- * Single Player flow:  PLAYER_TURN → DEALER_TURN → SHOWDOWN
- * Multiplayer flow:    PLAYER_TURN → PLAYER2_TURN → SHOWDOWN
- */
 public class TurnManager {
 
     private final GameState gameState;
@@ -17,26 +11,15 @@ public class TurnManager {
         this.gameState = gameState;
     }
 
-    /**
-     * Returns the player whose turn it currently is.
-     */
     public Player getCurrentPlayer() {
         return currentPlayer;
     }
 
-    /**
-     * Sets the initial turn at the start of a round.
-     * Always starts with player 1.
-     */
     public void startTurns() {
         currentPlayer = gameState.getPlayer1();
         gameState.setPhase(GamePhase.PLAYER_TURN);
     }
 
-    /**
-     * Advances to the next turn/phase based on the current game mode.
-     * Returns the new GamePhase after advancing.
-     */
     public GamePhase nextTurn() {
         GamePhase currentPhase = gameState.getPhase();
 
@@ -47,13 +30,10 @@ public class TurnManager {
         }
     }
 
-    /**
-     * SP flow: PLAYER_TURN → DEALER_TURN → SHOWDOWN → ROUND_OVER
-     */
     private GamePhase advanceSinglePlayer(GamePhase currentPhase) {
         GamePhase nextPhase = switch (currentPhase) {
             case PLAYER_TURN -> {
-                // If player busted, skip dealer turn and go straight to showdown
+
                 if (gameState.getPlayer1().getHand().isBusted()) {
                     yield GamePhase.SHOWDOWN;
                 }
@@ -72,10 +52,6 @@ public class TurnManager {
         return nextPhase;
     }
 
-    /**
-     * MP flow: PLAYER_TURN → PLAYER2_TURN → SHOWDOWN → ROUND_OVER
-     * No dealer turn at all.
-     */
     private GamePhase advanceMultiplayer(GamePhase currentPhase) {
         GamePhase nextPhase = switch (currentPhase) {
             case PLAYER_TURN -> {
@@ -94,18 +70,7 @@ public class TurnManager {
         return nextPhase;
     }
 
-    /**
-     * Returns true if it's the given player's turn.
-     */
     public boolean isPlayerTurn(Player player) {
         return currentPlayer != null && currentPlayer == player;
     }
-
-    /**
-     * Returns true if the round is over.
-     */
-    public boolean isRoundOver() {
-        return gameState.getPhase() == GamePhase.ROUND_OVER;
-    }
 }
-

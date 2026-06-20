@@ -17,12 +17,6 @@ import java.util.List;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Controller for the multiplayer lobby.
- * Supports two modes:
- *   HOST — starts GameServer, RMI registry, waits for a player to connect
- *   JOIN — connects to a host via RMI matchmaking, then TCP
- */
 public class LobbyController {
 
     @FXML private Label lblTitle;
@@ -45,9 +39,6 @@ public class LobbyController {
     private ScheduledFuture<?> chatPollFuture;
     private int lastChatIndex = 0;
 
-    /**
-     * Sets up the lobby as a HOST (starts server + RMI services).
-     */
     public void initAsHost() {
         isHost = true;
         lblTitle.setText("Host Multiplayer");
@@ -61,7 +52,7 @@ public class LobbyController {
 
         AppExecutorService.getInstance().submit(() -> {
             try {
-                // Start RMI registry and bind services
+
                 rmiRegistry = RmiServiceManager.startRegistry(RmiServiceManager.RMI_REGISTRY_PORT);
                 ChatServiceImpl chatImpl = new ChatServiceImpl();
                 MatchmakingServiceImpl matchImpl = new MatchmakingServiceImpl(port);
@@ -77,7 +68,6 @@ public class LobbyController {
                     startChatPolling();
                 });
 
-                // Create TCP game server
                 gameServer = new GameServer(port, config);
                 gameServer.setListener(playerId ->
                         Platform.runLater(() -> {
@@ -86,11 +76,8 @@ public class LobbyController {
                         })
                 );
 
-                // Start server with onReady callback:
-                // As soon as the socket is open, connect the host as TCP client #1
                 gameServer.start(() -> {
-                    // This runs on the server thread, right after ServerSocket is open
-                    // Connect host as client on a separate thread
+
                     AppExecutorService.getInstance().submit(() -> {
                         try {
                             gameClient = new GameClient("localhost", port, "Player 1");
@@ -125,7 +112,6 @@ public class LobbyController {
                         }
                     });
                 });
-                // gameServer.start() blocks here until both clients connect
 
             } catch (Exception e) {
                 Platform.runLater(() -> lblStatus.setText("Server error: " + e.getMessage()));
@@ -133,9 +119,6 @@ public class LobbyController {
         });
     }
 
-    /**
-     * Sets up the lobby as a JOINER (connects to a remote host).
-     */
     public void initAsJoiner() {
         isHost = false;
         lblTitle.setText("Join Multiplayer");
@@ -149,9 +132,6 @@ public class LobbyController {
         lblStatus.setText("Enter host address and click Connect.");
     }
 
-    /**
-     * Connect button handler (joiner only).
-     */
     @FXML
     private void onConnect() {
         String host = txtHost.getText().trim();
@@ -168,14 +148,13 @@ public class LobbyController {
 
         AppExecutorService.getInstance().submit(() -> {
             try {
-                // Look up RMI services via JNDI
+
                 matchmakingService = RmiServiceManager.lookupMatchmakingService(host, RmiServiceManager.RMI_REGISTRY_PORT);
                 chatService = RmiServiceManager.lookupChatService(host, RmiServiceManager.RMI_REGISTRY_PORT);
 
                 matchmakingService.registerPlayer("Player 2");
                 int gamePort = matchmakingService.getGameServerPort();
 
-                // Joiner is ALWAYS player 2 (host is player 1 by TCP connection order)
                 int playerId = 2;
 
                 Platform.runLater(() -> {
@@ -184,7 +163,6 @@ public class LobbyController {
                     refreshPlayerList();
                 });
 
-                // Connect as TCP client directly on this background thread
                 gameClient = new GameClient(host, gamePort, "Player " + playerId);
                 gameClient.setPlayerId(playerId);
 
@@ -215,44 +193,6 @@ public class LobbyController {
         });
     }
 
-    /**
-     * Connects this instance as a TCP game client.
-     */
-    private void connectAsClient(String host, int port, int playerId) {
-        AppExecutorService.getInstance().submit(() -> {
-            try {
-                gameClient = new GameClient(host, port, "Player " + playerId);
-                gameClient.setPlayerId(playerId);
-
-                gameClient.setOnMessageReceived(message -> Platform.runLater(() -> {
-                    switch (message.getType()) {
-                        case GAME_START -> transitionToGame();
-                        case PLAYER_JOINED -> {
-                            lstPlayers.getItems().add(message.getSenderName() + " joined");
-                            lblStatus.setText(message.getSenderName() + " joined!");
-                        }
-                        case PLAYER_LEFT -> {
-                            lstPlayers.getItems().removeIf(s -> s.contains(message.getSenderName()));
-                            lblStatus.setText(message.getSenderName() + " left!");
-                        }
-                        case STATE_UPDATE, SHOWDOWN -> {
-                            // Game has started — handled by GameController
-                        }
-                    }
-                }));
-
-                gameClient.connect();
-                Platform.runLater(() -> lblStatus.setText("Connected! Waiting for game to start..."));
-
-            } catch (IOException e) {
-                Platform.runLater(() -> lblStatus.setText("TCP connection failed: " + e.getMessage()));
-            }
-        });
-    }
-
-    /**
-     * Transitions from lobby to the multiplayer game view.
-     */
     private void transitionToGame() {
         stopChatPolling();
         try {
@@ -265,9 +205,6 @@ public class LobbyController {
         }
     }
 
-    /**
-     * Refreshes the player list from the matchmaking service.
-     */
     private void refreshPlayerList() {
         if (matchmakingService == null) return;
         try {
@@ -280,10 +217,6 @@ public class LobbyController {
             lblStatus.setText("Error fetching players.");
         }
     }
-
-    // ========================================================================
-    // Chat
-    // ========================================================================
 
     @FXML
     private void onSendChat() {
@@ -299,9 +232,6 @@ public class LobbyController {
         }
     }
 
-    /**
-     * Polls RMI chat service every 500ms for new messages.
-     */
     private void startChatPolling() {
         chatPollFuture = AppExecutorService.getInstance().getScheduledPool()
                 .scheduleAtFixedRate(() -> {
@@ -326,13 +256,9 @@ public class LobbyController {
         }
     }
 
-    // ========================================================================
-    // Navigation
-    // ========================================================================
-
     @FXML
     private void onStartGame() {
-        // Manual start if needed
+
     }
 
     @FXML
@@ -364,4 +290,3 @@ public class LobbyController {
         return new GameConfig();
     }
 }
-

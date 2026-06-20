@@ -6,10 +6,6 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
 
-/**
- * RMI implementation of ChatService.
- * Stores chat messages and allows clients to retrieve them.
- */
 public class ChatServiceImpl extends UnicastRemoteObject implements ChatService {
 
     private final List<String> messages = new CopyOnWriteArrayList<>();
@@ -31,9 +27,4 @@ public class ChatServiceImpl extends UnicastRemoteObject implements ChatService 
         return new ArrayList<>(messages.subList(sinceIndex, messages.size()));
     }
 
-    @Override
-    public int getMessageCount() throws RemoteException {
-        return messages.size();
-    }
 }
-

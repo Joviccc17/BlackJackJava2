@@ -2,9 +2,6 @@ package hr.algebra.blackjack_dorianjovic.model;
 
 import java.io.Serializable;
 
-/**
- * Represents a single playing card with a rank, suit, and face-up/face-down state.
- */
 public class Card implements Serializable {
 
     private static final long serialVersionUID = 1L;
@@ -35,17 +32,10 @@ public class Card implements Serializable {
         this.faceUp = faceUp;
     }
 
-    /**
-     * Returns the point value of this card.
-     */
     public int getValue() {
         return rank.getValue();
     }
 
-    /**
-     * Returns a display string, e.g., "A♠" or "10♥".
-     * If face-down, returns "??".
-     */
     @Override
     public String toString() {
         if (!faceUp) {
@@ -67,4 +57,3 @@ public class Card implements Serializable {
         return 31 * rank.hashCode() + suit.hashCode();
     }
 }
-

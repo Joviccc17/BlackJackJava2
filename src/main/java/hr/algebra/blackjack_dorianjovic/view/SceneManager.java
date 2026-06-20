@@ -8,9 +8,6 @@ import javafx.stage.Stage;
 
 import java.io.IOException;
 
-/**
- * Singleton utility for switching between FXML scenes on the primary Stage.
- */
 public class SceneManager {
 
     private static SceneManager instance;
@@ -29,14 +26,6 @@ public class SceneManager {
         this.primaryStage = stage;
     }
 
-    public Stage getPrimaryStage() {
-        return primaryStage;
-    }
-
-    /**
-     * Switch the current scene to the given FXML view.
-     * @param fxmlFile the FXML filename (e.g., "main-menu-view.fxml")
-     */
     public void switchScene(String fxmlFile) throws IOException {
         FXMLLoader loader = new FXMLLoader(
                 BlackjackApplication.class.getResource(fxmlFile));
@@ -46,12 +35,6 @@ public class SceneManager {
         primaryStage.setScene(scene);
     }
 
-    /**
-     * Switch scene and return the controller for further configuration.
-     * @param fxmlFile the FXML filename
-     * @param <T> the controller type
-     * @return the controller instance
-     */
     public <T> T switchSceneAndGetController(String fxmlFile) throws IOException {
         FXMLLoader loader = new FXMLLoader(
                 BlackjackApplication.class.getResource(fxmlFile));
@@ -62,4 +45,3 @@ public class SceneManager {
         return loader.getController();
     }
 }
-

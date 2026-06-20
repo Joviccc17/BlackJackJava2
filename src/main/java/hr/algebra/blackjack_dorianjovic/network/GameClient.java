@@ -6,11 +6,6 @@ import java.io.*;
 import java.net.Socket;
 import java.util.function.Consumer;
 
-/**
- * TCP Game Client that connects to the GameServer.
- * Sends player actions and receives game state updates.
- * Runs a background listener thread for incoming messages.
- */
 public class GameClient {
 
     private final String host;
@@ -30,9 +25,6 @@ public class GameClient {
         this.playerName = playerName;
     }
 
-    /**
-     * Connects to the server and starts the listener thread.
-     */
     public void connect() throws IOException {
         socket = new Socket(host, port);
         out = new ObjectOutputStream(socket.getOutputStream());
@@ -40,15 +32,11 @@ public class GameClient {
         in = new ObjectInputStream(socket.getInputStream());
         connected = true;
 
-        // Start background listener thread
         Thread listenerThread = new Thread(this::listenForMessages, "Client-Listener");
         listenerThread.setDaemon(true);
         listenerThread.start();
     }
 
-    /**
-     * Background loop that reads messages from the server.
-     */
     private void listenForMessages() {
         try {
             while (connected) {
@@ -56,27 +44,24 @@ public class GameClient {
                 handleMessage(message);
             }
         } catch (EOFException e) {
-            // Server disconnected
+
         } catch (IOException | ClassNotFoundException e) {
-            // Connection lost
+
         } finally {
             disconnect();
         }
     }
 
-    /**
-     * Processes incoming messages from the server.
-     */
     private void handleMessage(GameMessage message) {
         switch (message.getType()) {
             case PLAYER_JOINED -> {
-                // The server assigns player IDs in connection order
+
                 if (playerId == -1) {
                     playerId = message.getPlayerId();
                 }
             }
             case STATE_UPDATE, SHOWDOWN, GAME_START, CHAT, PLAYER_LEFT -> {
-                // Forward to UI listener
+
             }
         }
 
@@ -85,48 +70,22 @@ public class GameClient {
         }
     }
 
-    // ========================================================================
-    // Send Methods
-    // ========================================================================
-
-    /**
-     * Sends a bet to the server.
-     */
     public void sendBet(int amount) {
         sendMessage(GameMessage.bet(playerId, playerName, amount));
     }
 
-    /**
-     * Sends a player action (HIT, STAND, etc.) to the server.
-     */
     public void sendAction(PlayerAction action) {
         sendMessage(GameMessage.playerAction(playerId, playerName, action));
     }
 
-    /**
-     * Sends a chat message to the server.
-     */
-    public void sendChat(String text) {
-        sendMessage(GameMessage.chat(playerId, playerName, text));
-    }
-
-    /**
-     * Sends a deal request (start new round) to the server.
-     */
     public void sendDealRequest() {
         sendMessage(GameMessage.dealRequest(playerId, playerName));
     }
 
-    /**
-     * Requests a state refresh from the server.
-     */
     public void requestStateRefresh() {
         sendMessage(new GameMessage(MessageType.HEARTBEAT, playerId, playerName));
     }
 
-    /**
-     * Sends a message to the server.
-     */
     private void sendMessage(GameMessage message) {
         try {
             if (out != null && connected) {
@@ -139,9 +98,6 @@ public class GameClient {
         }
     }
 
-    /**
-     * Disconnects from the server.
-     */
     public void disconnect() {
         connected = false;
         try {
@@ -151,12 +107,8 @@ public class GameClient {
         } catch (IOException ignored) {}
     }
 
-    // --- Getters/Setters ---
-
-    public boolean isConnected() { return connected; }
     public int getPlayerId() { return playerId; }
     public void setPlayerId(int playerId) { this.playerId = playerId; }
-    public String getPlayerName() { return playerName; }
 
     public void setOnMessageReceived(Consumer<GameMessage> listener) {
         this.onMessageReceived = listener;

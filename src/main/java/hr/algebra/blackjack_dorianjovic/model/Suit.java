@@ -2,9 +2,6 @@ package hr.algebra.blackjack_dorianjovic.model;
 
 import java.io.Serializable;
 
-/**
- * Represents the four card suits.
- */
 public enum Suit implements Serializable {
 
     HEARTS("♥"),
@@ -27,4 +24,3 @@ public enum Suit implements Serializable {
         return symbol;
     }
 }
-

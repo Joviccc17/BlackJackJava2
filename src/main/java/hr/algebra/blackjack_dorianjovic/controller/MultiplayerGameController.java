@@ -9,20 +9,15 @@ import javafx.application.Platform;
 import javafx.fxml.FXML;
 import javafx.scene.control.*;
 import javafx.scene.layout.HBox;
+import javafx.scene.layout.VBox;
 
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.ScheduledFuture;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Controller for the multiplayer game view (mp-game-view.fxml).
- * Receives game state updates from the server via GameClient,
- * sends player actions, and handles RMI chat.
- */
 public class MultiplayerGameController {
 
-    // --- FXML Components ---
     @FXML private Label lblOpponentName;
     @FXML private HBox opponentCardArea;
     @FXML private Label lblOpponentScore;
@@ -36,6 +31,12 @@ public class MultiplayerGameController {
     @FXML private Label lblPlayerName;
     @FXML private HBox playerCardArea;
     @FXML private Label lblPlayerScore;
+
+    @FXML private Label lblHand1Label;
+    @FXML private VBox splitHandArea;
+    @FXML private Label lblHand2Label;
+    @FXML private HBox splitCardArea;
+    @FXML private Label lblSplitScore;
 
     @FXML private HBox actionButtons;
     @FXML private Button btnHit;
@@ -51,28 +52,28 @@ public class MultiplayerGameController {
     @FXML private Label lblCurrentBet;
     @FXML private Label lblRound;
 
-    // --- State ---
     private GameClient client;
     private ChatService chatService;
-    private GameServer gameServer; // null if this instance is the joiner
+    private GameServer gameServer;
     private int localPlayerId;
     private GameState currentState;
     private HandView playerHandView;
     private HandView opponentHandView;
+    private HandView splitHandView;
     private ScheduledFuture<?> chatPollFuture;
     private int lastChatIndex = 0;
+    private boolean playingSplitHand = false;
 
     @FXML
     public void initialize() {
         playerHandView = new HandView();
         opponentHandView = new HandView();
+        splitHandView = new HandView();
         playerCardArea.getChildren().add(playerHandView);
         opponentCardArea.getChildren().add(opponentHandView);
+        splitCardArea.getChildren().add(splitHandView);
     }
 
-    /**
-     * Called by LobbyController to set up the multiplayer game.
-     */
     public void initMultiplayer(GameClient client, ChatService chatService,
                                 int localPlayerId, GameServer gameServer) {
         this.client = client;
@@ -83,21 +84,13 @@ public class MultiplayerGameController {
         lblPlayerName.setText("Player " + localPlayerId + " (You)");
         lblOpponentName.setText("Player " + (localPlayerId == 1 ? 2 : 1));
 
-        // Listen for incoming messages from the server
         client.setOnMessageReceived(message -> Platform.runLater(() -> handleServerMessage(message)));
-
-        // Start chat polling
         startChatPolling();
-
-        // Request current state from server (in case we missed the initial STATE_UPDATE)
         client.requestStateRefresh();
 
         lblStatus.setText("Place your bet to start!");
     }
 
-    /**
-     * Handles messages received from the GameServer.
-     */
     private void handleServerMessage(GameMessage message) {
         switch (message.getType()) {
             case STATE_UPDATE -> {
@@ -115,21 +108,25 @@ public class MultiplayerGameController {
                 bettingArea.setVisible(false);
                 roundOverButtons.setVisible(true);
             }
-            case CHAT -> {
-                // Chat handled by RMI polling
-            }
+            case CHAT -> {}
         }
     }
-
-    // ========================================================================
-    // FXML Action Handlers
-    // ========================================================================
 
     @FXML
     private void onPlaceBet() {
         try {
             int bet = Integer.parseInt(txtBetAmount.getText().trim());
+            if (bet <= 0) {
+                lblStatus.setText("Bet must be a positive number!");
+                return;
+            }
+            Player localPlayer = getLocalPlayer();
+            if (localPlayer != null && bet > localPlayer.getChips()) {
+                lblStatus.setText("Not enough chips!");
+                return;
+            }
             client.sendBet(bet);
+            lblCurrentBet.setText("Bet: " + bet);
             lblStatus.setText("Bet placed! Waiting for opponent...");
             bettingArea.setVisible(false);
         } catch (NumberFormatException e) {
@@ -139,28 +136,57 @@ public class MultiplayerGameController {
 
     @FXML
     private void onHit() {
-        client.sendAction(PlayerAction.HIT);
+        Player localPlayer = getLocalPlayer();
+        if (localPlayer != null && localPlayer.hasSplit()) {
+            if (!playingSplitHand) {
+                client.sendAction(PlayerAction.HIT);
+            } else {
+                client.sendAction(PlayerAction.HIT_SPLIT_HAND);
+            }
+        } else {
+            client.sendAction(PlayerAction.HIT);
+        }
     }
 
     @FXML
     private void onStand() {
-        client.sendAction(PlayerAction.STAND);
+        Player localPlayer = getLocalPlayer();
+        if (localPlayer != null && localPlayer.hasSplit()) {
+            if (!playingSplitHand) {
+                switchToSplitHand2();
+            } else {
+                client.sendAction(PlayerAction.STAND_SPLIT_HAND);
+                playingSplitHand = false;
+            }
+        } else {
+            client.sendAction(PlayerAction.STAND);
+        }
     }
 
     @FXML
     private void onSplit() {
         client.sendAction(PlayerAction.SPLIT);
+        playingSplitHand = false;
+    }
+
+    private void switchToSplitHand2() {
+        playingSplitHand = true;
+        lblHand1Label.setText("  Hand 1");
+        lblHand2Label.setText("> Hand 2");
+        lblStatus.setText("Now playing Hand 2 — Hit or Stand?");
     }
 
     @FXML
     private void onNewRound() {
+        playingSplitHand = false;
+        splitHandArea.setVisible(false);
+        lblHand1Label.setText("");
+        lblHand2Label.setText("");
         client.sendDealRequest();
         roundOverButtons.setVisible(false);
         bettingArea.setVisible(true);
         lblStatus.setText("Place your bet for the next round!");
     }
-
-
 
     @FXML
     private void onLeaveGame() {
@@ -174,10 +200,6 @@ public class MultiplayerGameController {
             lblStatus.setText("Error returning to menu.");
         }
     }
-
-    // ========================================================================
-    // Chat (RMI)
-    // ========================================================================
 
     @FXML
     private void onSendChat() {
@@ -217,10 +239,6 @@ public class MultiplayerGameController {
         }
     }
 
-    // ========================================================================
-    // UI Updates
-    // ========================================================================
-
     private void updateUI() {
         if (currentState == null) return;
 
@@ -228,6 +246,7 @@ public class MultiplayerGameController {
         updateScores();
         updateInfoBar();
         updatePhaseUI();
+        updateSplitUI();
     }
 
     private void updateCards() {
@@ -236,6 +255,10 @@ public class MultiplayerGameController {
 
         if (localPlayer != null) {
             playerHandView.updateCards(localPlayer.getHand().getCards());
+            if (localPlayer.hasSplit()) {
+                splitHandView.updateCards(localPlayer.getSplitHand().getCards());
+                splitHandArea.setVisible(true);
+            }
         }
         if (opponent != null) {
             opponentHandView.updateCards(opponent.getHand().getCards());
@@ -248,6 +271,9 @@ public class MultiplayerGameController {
 
         if (localPlayer != null) {
             lblPlayerScore.setText("Score: " + localPlayer.getHand().calculateScore());
+            if (localPlayer.hasSplit()) {
+                lblSplitScore.setText("Score: " + localPlayer.getSplitHand().calculateScore());
+            }
         }
 
         if (opponent != null) {
@@ -255,7 +281,6 @@ public class MultiplayerGameController {
             if (phase == GamePhase.SHOWDOWN || phase == GamePhase.ROUND_OVER) {
                 lblOpponentScore.setText("Score: " + opponent.getHand().calculateScore());
             } else {
-                // Show visible card value + ? for hidden cards
                 int visibleScore = opponent.getHand().getCards().stream()
                         .filter(Card::isFaceUp)
                         .mapToInt(Card::getValue)
@@ -275,15 +300,38 @@ public class MultiplayerGameController {
         lblPot.setText("Pot: " + currentState.getPot());
     }
 
+    private void updateSplitUI() {
+        Player localPlayer = getLocalPlayer();
+        if (localPlayer == null || !localPlayer.hasSplit()) return;
+
+        if (localPlayer.getHand().isBusted() && !playingSplitHand) {
+            switchToSplitHand2();
+        }
+
+        if (!playingSplitHand) {
+            lblHand1Label.setText("> Hand 1");
+            lblHand2Label.setText("  Hand 2");
+        } else {
+            lblHand1Label.setText("  Hand 1");
+            lblHand2Label.setText("> Hand 2");
+        }
+    }
+
     private void updatePhaseUI() {
         GamePhase phase = currentState.getPhase();
 
         switch (phase) {
             case BETTING -> {
-                bettingArea.setVisible(true);
                 actionButtons.setVisible(false);
                 roundOverButtons.setVisible(false);
-                lblStatus.setText("Place your bet!");
+                Player localPlayer = getLocalPlayer();
+                if (localPlayer != null && localPlayer.getCurrentBet() > 0) {
+                    bettingArea.setVisible(false);
+                    lblStatus.setText("Bet placed! Waiting for opponent...");
+                } else {
+                    bettingArea.setVisible(true);
+                    lblStatus.setText("Place your bet!");
+                }
             }
             case DEALING -> {
                 bettingArea.setVisible(false);
@@ -295,7 +343,14 @@ public class MultiplayerGameController {
                 bettingArea.setVisible(false);
                 if (localPlayerId == 1) {
                     actionButtons.setVisible(true);
-                    lblStatus.setText("Your turn — Hit or Stand?");
+                    Player localPlayer = getLocalPlayer();
+                    if (localPlayer != null && localPlayer.hasSplit()) {
+                        lblStatus.setText(playingSplitHand
+                                ? "Playing Hand 2 — Hit or Stand?"
+                                : "Playing Hand 1 — Hit or Stand?");
+                    } else {
+                        lblStatus.setText("Your turn — Hit or Stand?");
+                    }
                     updateActionButtonStates();
                 } else {
                     actionButtons.setVisible(false);
@@ -307,7 +362,14 @@ public class MultiplayerGameController {
                 bettingArea.setVisible(false);
                 if (localPlayerId == 2) {
                     actionButtons.setVisible(true);
-                    lblStatus.setText("Your turn — Hit or Stand?");
+                    Player localPlayer = getLocalPlayer();
+                    if (localPlayer != null && localPlayer.hasSplit()) {
+                        lblStatus.setText(playingSplitHand
+                                ? "Playing Hand 2 — Hit or Stand?"
+                                : "Playing Hand 1 — Hit or Stand?");
+                    } else {
+                        lblStatus.setText("Your turn — Hit or Stand?");
+                    }
                     updateActionButtonStates();
                 } else {
                     actionButtons.setVisible(false);
@@ -319,20 +381,21 @@ public class MultiplayerGameController {
                 bettingArea.setVisible(false);
                 actionButtons.setVisible(false);
                 roundOverButtons.setVisible(true);
+                playingSplitHand = false;
                 String msg = currentState.getResultMessage();
                 lblStatus.setText(msg != null ? msg : "Round over!");
             }
-            default -> {
-                // WAITING, DEALER_TURN — not used in multiplayer
-            }
+            default -> {}
         }
     }
 
     private void updateActionButtonStates() {
         Player localPlayer = getLocalPlayer();
         if (localPlayer != null) {
-            btnSplit.setDisable(!localPlayer.getHand().canSplit()
-                    || localPlayer.getChips() < localPlayer.getCurrentBet());
+            boolean canSplit = localPlayer.getHand().canSplit()
+                    && !localPlayer.hasSplit()
+                    && localPlayer.getChips() >= localPlayer.getCurrentBet();
+            btnSplit.setDisable(!canSplit);
         }
     }
 
@@ -346,10 +409,6 @@ public class MultiplayerGameController {
         alert.show();
     }
 
-    // ========================================================================
-    // Helpers
-    // ========================================================================
-
     private Player getLocalPlayer() {
         if (currentState == null) return null;
         return localPlayerId == 1 ? currentState.getPlayer1() : currentState.getPlayer2();
@@ -360,4 +419,3 @@ public class MultiplayerGameController {
         return localPlayerId == 1 ? currentState.getPlayer2() : currentState.getPlayer1();
     }
 }
-

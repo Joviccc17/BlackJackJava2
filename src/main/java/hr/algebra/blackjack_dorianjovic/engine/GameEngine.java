@@ -4,13 +4,6 @@ import hr.algebra.blackjack_dorianjovic.config.GameConfig;
 import hr.algebra.blackjack_dorianjovic.model.*;
 import hr.algebra.blackjack_dorianjovic.util.Documented;
 
-/**
- * Central game orchestrator. Holds GameState and provides all game actions.
- * Mode-aware: checks gameState.getMode() to apply correct rules.
- *
- * SP flow:  startNewRound → placeBet → dealInitialCards → playerHit/Stand → executeDealerTurn → resolveShowdown
- * MP flow:  startNewRound → placeBet(both) → dealInitialCards → player1 Hit/Stand → player2 Hit/Stand → resolveShowdown
- */
 public class GameEngine {
 
     private GameState gameState;
@@ -22,9 +15,6 @@ public class GameEngine {
         initializeGame(mode);
     }
 
-    /**
-     * Initializes a fresh game with the given mode.
-     */
     private void initializeGame(GameMode mode) {
         gameState = new GameState(mode);
         gameState.setDeck(new Deck(config.getNumberOfDecks()));
@@ -41,22 +31,12 @@ public class GameEngine {
         gameState.setPhase(GamePhase.BETTING);
     }
 
-    /**
-     * Restores a game from a previously saved GameState (deserialization).
-     */
     public GameEngine(GameConfig config, GameState savedState) {
         this.config = config;
         this.gameState = savedState;
         this.turnManager = new TurnManager(savedState);
     }
 
-    // ========================================================================
-    // ROUND LIFECYCLE
-    // ========================================================================
-
-    /**
-     * Starts a new round: resets hands, increments round counter, goes to BETTING phase.
-     */
     @Documented(description = "Starts a new round: resets hands, increments round counter, reshuffles if needed")
     public void startNewRound() {
         gameState.incrementRound();
@@ -71,7 +51,6 @@ public class GameEngine {
             gameState.getPlayer2().resetForNewRound();
         }
 
-        // Reshuffle if less than 25% of cards remain
         if (gameState.getDeck().cardsRemaining() < gameState.getDeck().totalCards() / 4) {
             gameState.getDeck().shuffle();
         }
@@ -79,10 +58,6 @@ public class GameEngine {
         gameState.setPhase(GamePhase.BETTING);
     }
 
-    /**
-     * Places a bet for the given player.
-     * In SP: only player1 bets. In MP: both players bet (stakes go to pot).
-     */
     public void placeBet(Player player, int amount) {
         if (amount < config.getMinBet() || amount > config.getMaxBet()) {
             throw new IllegalArgumentException(
@@ -95,45 +70,37 @@ public class GameEngine {
         }
     }
 
-    /**
-     * Deals initial cards after bets are placed.
-     * SP: Player gets 2 face-up, Dealer gets 1 face-up + 1 face-down.
-     * MP: Both players get 2 face-up (visibility is handled by network/GUI layer).
-     */
     @Documented(description = "Deals initial cards: SP gives player 2 face-up, dealer 1 up + 1 down; MP gives both players 2 cards")
     public void dealInitialCards() {
         gameState.setPhase(GamePhase.DEALING);
 
         if (gameState.isSinglePlayer()) {
-            // Player gets 2 face-up cards
+
             dealCardToPlayer(gameState.getPlayer1(), true);
             dealCardToPlayer(gameState.getPlayer1(), true);
 
-            // Dealer gets 1 face-up + 1 face-down (hole card)
             dealCardToPlayer(gameState.getDealer(), true);
             dealCardToPlayer(gameState.getDealer(), false);
         } else {
-            // MP: both players get 2 face-up cards
+
             dealCardToPlayer(gameState.getPlayer1(), true);
             dealCardToPlayer(gameState.getPlayer2(), true);
             dealCardToPlayer(gameState.getPlayer1(), true);
             dealCardToPlayer(gameState.getPlayer2(), true);
         }
 
-        // Start player turns
         turnManager.startTurns();
 
-        // Auto-resolve natural blackjack (21 on initial 2 cards)
         if (gameState.isSinglePlayer()) {
             Player player = gameState.getPlayer1();
             Dealer dealer = gameState.getDealer();
 
             if (player.getHand().isBlackjack() || dealer.getHand().isBlackjack()) {
-                // Reveal dealer's hole card
+
                 for (Card c : dealer.getHand().getCards()) {
                     c.setFaceUp(true);
                 }
-                // Skip directly to showdown
+
                 gameState.setPhase(GamePhase.SHOWDOWN);
             }
         }
@@ -145,14 +112,6 @@ public class GameEngine {
         player.getHand().addCard(card);
     }
 
-    // ========================================================================
-    // PLAYER ACTIONS
-    // ========================================================================
-
-    /**
-     * Player hits — draws one card. If busted, automatically advances turn.
-     * Returns true if the player busted.
-     */
     @Documented(description = "Player hits: draws one card, auto-advances turn if busted")
     public boolean playerHit(Player player) {
         validatePlayerTurn(player);
@@ -162,7 +121,7 @@ public class GameEngine {
         player.getHand().addCard(card);
 
         if (player.getHand().isBusted()) {
-            // Auto-stand on bust — move to next phase
+
             turnManager.nextTurn();
             return true;
         }
@@ -170,18 +129,11 @@ public class GameEngine {
         return false;
     }
 
-    /**
-     * Player stands — ends their turn, advances to next phase.
-     */
     public void playerStand(Player player) {
         validatePlayerTurn(player);
         turnManager.nextTurn();
     }
 
-    /**
-     * Player doubles down — doubles the bet, draws exactly one card, then stands.
-     * Available only if player has exactly 2 cards and enough chips.
-     */
     public boolean playerDoubleDown(Player player) {
         validatePlayerTurn(player);
 
@@ -201,21 +153,15 @@ public class GameEngine {
             gameState.addToPot(additionalBet);
         }
 
-        // Draw exactly one card
         Card card = gameState.getDeck().drawCard();
         card.setFaceUp(true);
         player.getHand().addCard(card);
 
-        // Automatically stand after double down
         turnManager.nextTurn();
 
         return player.getHand().isBusted();
     }
 
-    /**
-     * Player splits — splits a pair into two separate hands.
-     * Each hand gets one additional card.
-     */
     public void playerSplit(Player player) {
         validatePlayerTurn(player);
 
@@ -235,12 +181,10 @@ public class GameEngine {
             gameState.addToPot(splitBet);
         }
 
-        // Create split hand with the second card
         Hand splitHand = new Hand();
         Card secondCard = originalHand.getCardsMutable().remove(1);
         splitHand.addCard(secondCard);
 
-        // Deal one new card to each hand
         Card newCard1 = gameState.getDeck().drawCard();
         newCard1.setFaceUp(true);
         originalHand.addCard(newCard1);
@@ -252,11 +196,6 @@ public class GameEngine {
         player.setSplitHand(splitHand);
     }
 
-    /**
-     * Draws one card into the player's main hand during a split (hand 1).
-     * Does NOT advance the turn — the controller decides whether to switch to hand 2.
-     * Returns true if the main hand is now busted.
-     */
     public boolean playerHitDuringSplit(Player player) {
         Card card = gameState.getDeck().drawCard();
         card.setFaceUp(true);
@@ -264,11 +203,6 @@ public class GameEngine {
         return player.getHand().isBusted();
     }
 
-    /**
-     * Draws one card into the player's split hand (hand 2).
-     * Does NOT advance the turn — the controller handles bust/stand transitions.
-     * Returns true if the split hand is now busted.
-     */
     public boolean playerHitSplitHand(Player player) {
         Card card = gameState.getDeck().drawCard();
         card.setFaceUp(true);
@@ -276,45 +210,6 @@ public class GameEngine {
         return player.getSplitHand().isBusted();
     }
 
-    // ========================================================================
-    // DEALER TURN (SP only)
-    // ========================================================================
-
-    /**
-     * Executes the dealer's turn. Dealer reveals hole card, then hits according to rules.
-     * Only used in SINGLE_PLAYER mode.
-     */
-    public void executeDealerTurn() {
-        if (!gameState.isSinglePlayer()) {
-            throw new IllegalStateException("Dealer turn is only for single-player mode");
-        }
-
-        Dealer dealer = gameState.getDealer();
-
-        // Reveal hole card
-        for (Card card : dealer.getHand().getCards()) {
-            card.setFaceUp(true);
-        }
-
-        // Dealer draws according to rules
-        while (dealer.shouldHit()) {
-            Card card = gameState.getDeck().drawCard();
-            card.setFaceUp(true);
-            dealer.getHand().addCard(card);
-        }
-
-        // Advance to showdown
-        turnManager.nextTurn();
-    }
-
-    // ========================================================================
-    // SHOWDOWN & RESOLUTION
-    // ========================================================================
-
-    /**
-     * Resolves the round — determines winner and distributes chips/pot.
-     * Returns the GameResult.
-     */
     @Documented(description = "Resolves the round: determines winner, distributes chips/pot based on game mode")
     public GameResult resolveShowdown() {
         GameResult result;
@@ -347,25 +242,19 @@ public class GameEngine {
         return result;
     }
 
-    /**
-     * Resolves both split hands independently against the dealer.
-     * Each hand has the same bet amount and is evaluated separately.
-     */
     private GameResult resolveSplitHands(Player player, Dealer dealer) {
         Hand hand1 = player.getHand();
         Hand hand2 = player.getSplitHand();
         Hand dealerHand = dealer.getHand();
-        int betPerHand = player.getCurrentBet(); // This is the original bet (split costs same again)
+        int betPerHand = player.getCurrentBet();
 
         GameResult result1 = BlackjackRules.determineWinnerForHand(hand1, dealerHand);
         GameResult result2 = BlackjackRules.determineWinnerForHand(hand2, dealerHand);
 
-        // Payout for each hand
         int payout1 = calculateSplitPayout(result1, betPerHand);
         int payout2 = calculateSplitPayout(result2, betPerHand);
         player.addChips(payout1 + payout2);
 
-        // Build result message
         int dealerScore = dealerHand.calculateScore();
         String msg = "Split Results vs Dealer (" + dealerScore + "):\n"
                 + "  Hand 1 (" + hand1.calculateScore() + "): " + describeResult(result1, payout1) + "\n"
@@ -373,7 +262,6 @@ public class GameEngine {
                 + "  Net: " + (payout1 + payout2 - 2 * betPerHand) + " chips";
         gameState.setResultMessage(msg);
 
-        // Return the "better" result for popup purposes
         if (result1 == GameResult.PLAYER_WINS || result2 == GameResult.PLAYER_WINS) {
             return GameResult.PLAYER_WINS;
         }
@@ -385,9 +273,9 @@ public class GameEngine {
 
     private int calculateSplitPayout(GameResult result, int bet) {
         return switch (result) {
-            case PLAYER_WINS -> bet * 2;    // win: get bet back + winnings
-            case PUSH -> bet;               // push: bet returned
-            default -> 0;                   // loss: lose the bet
+            case PLAYER_WINS -> bet * 2;
+            case PUSH -> bet;
+            default -> 0;
         };
     }
 
@@ -404,26 +292,41 @@ public class GameEngine {
         Player p1 = gameState.getPlayer1();
         Player p2 = gameState.getPlayer2();
 
-        // Reveal all cards at showdown
         revealAllCards(p1);
         revealAllCards(p2);
 
-        GameResult result = BlackjackRules.determineWinnerMP(p1, p2);
+        int score1 = bestScore(p1);
+        int score2 = bestScore(p2);
+
+        GameResult result = determineWinnerByScore(score1, score2);
         int pot = gameState.getPot();
 
         switch (result) {
             case PLAYER1_WINS -> p1.addChips(pot);
             case PLAYER2_WINS -> p2.addChips(pot);
             case PUSH -> {
-                // Return stakes equally
                 p1.addChips(pot / 2);
-                p2.addChips(pot - pot / 2); // handles odd pot
+                p2.addChips(pot - pot / 2);
             }
-            default -> {} // shouldn't happen in MP
+            default -> {}
         }
 
-        gameState.setResultMessage(formatResultMessageMP(result, p1, p2));
+        gameState.setResultMessage(formatResultMessageMP(result, p1, p2, score1, score2));
         return result;
+    }
+
+    private int bestScore(Player player) {
+        int mainScore = player.getHand().isBusted() ? 0 : player.getHand().calculateScore();
+        if (!player.hasSplit()) return mainScore;
+        int splitScore = player.getSplitHand().isBusted() ? 0 : player.getSplitHand().calculateScore();
+        return Math.max(mainScore, splitScore);
+    }
+
+    private GameResult determineWinnerByScore(int score1, int score2) {
+        if (score1 == 0 && score2 == 0) return GameResult.PUSH;
+        if (score1 > score2) return GameResult.PLAYER1_WINS;
+        if (score2 > score1) return GameResult.PLAYER2_WINS;
+        return GameResult.PUSH;
     }
 
     private void revealAllCards(Player player) {
@@ -450,39 +353,36 @@ public class GameEngine {
         };
     }
 
-    private String formatResultMessageMP(GameResult result, Player p1, Player p2) {
-        int score1 = p1.getHand().calculateScore();
-        int score2 = p2.getHand().calculateScore();
+    private String formatResultMessageMP(GameResult result, Player p1, Player p2,
+                                            int bestScore1, int bestScore2) {
+        String s1 = formatPlayerScore(p1);
+        String s2 = formatPlayerScore(p2);
 
         return switch (result) {
-            case PLAYER1_WINS -> p1.getName() + " wins! (" + score1 + " vs " + score2 + ") — wins the pot of " + gameState.getPot();
-            case PLAYER2_WINS -> p2.getName() + " wins! (" + score2 + " vs " + score1 + ") — wins the pot of " + gameState.getPot();
-            case PUSH -> "Push! (" + score1 + " vs " + score2 + ") — pot returned.";
+            case PLAYER1_WINS -> p1.getName() + " wins! (" + s1 + " vs " + s2 + ") — wins the pot of " + gameState.getPot();
+            case PLAYER2_WINS -> p2.getName() + " wins! (" + s2 + " vs " + s1 + ") — wins the pot of " + gameState.getPot();
+            case PUSH -> "Push! (" + s1 + " vs " + s2 + ") — pot returned.";
             default -> "Round over.";
         };
     }
 
-    // ========================================================================
-    // NETWORK SUPPORT — Card visibility filtering for MP
-    // ========================================================================
+    private String formatPlayerScore(Player player) {
+        if (!player.hasSplit()) {
+            return String.valueOf(player.getHand().calculateScore());
+        }
+        int h1 = player.getHand().calculateScore();
+        int h2 = player.getSplitHand().calculateScore();
+        return "H1:" + h1 + "/H2:" + h2;
+    }
 
-    /**
-     * Returns a deep copy of the GameState where the opponent's cards are hidden.
-     * Used by the server to send filtered state to each client in MP.
-     * The opponent's card count is preserved but rank/suit are hidden (face-down).
-     *
-     * @param playerId the player requesting the state (1 or 2)
-     * @return filtered GameState safe to send to that player
-     */
     @Documented(description = "Returns filtered GameState for a specific player, hiding opponent cards in multiplayer")
     public GameState getVisibleStateForPlayer(int playerId) {
-        // During showdown or round over, return full state (all cards visible)
+
         if (gameState.getPhase() == GamePhase.SHOWDOWN
                 || gameState.getPhase() == GamePhase.ROUND_OVER) {
             return gameState;
         }
 
-        // Create a copy with opponent's cards hidden
         GameState filtered = new GameState(gameState.getMode());
         filtered.setPhase(gameState.getPhase());
         filtered.setDeck(gameState.getDeck());
@@ -502,10 +402,6 @@ public class GameEngine {
         return filtered;
     }
 
-    /**
-     * Creates a copy of a player with only the first card visible.
-     * The first card is shown face-up, remaining cards are face-down placeholders.
-     */
     private Player createHiddenPlayer(Player original) {
         if (original == null) return null;
 
@@ -513,27 +409,31 @@ public class GameEngine {
         hidden.setCurrentBet(original.getCurrentBet());
         hidden.setPlayerId(original.getPlayerId());
 
-        for (int i = 0; i < original.getHand().size(); i++) {
-            if (i == 0) {
-                // First card — show the real card face-up
-                Card realCard = original.getHand().getCards().get(0);
-                Card visibleCopy = new Card(realCard.getRank(), realCard.getSuit());
-                visibleCopy.setFaceUp(true);
-                hidden.getHand().addCard(visibleCopy);
-            } else {
-                // Remaining cards — face-down placeholders
-                Card placeholder = new Card(Rank.ACE, Suit.SPADES);
-                placeholder.setFaceUp(false);
-                hidden.getHand().addCard(placeholder);
-            }
+        hideHandInto(original.getHand(), hidden.getHand());
+
+        if (original.hasSplit()) {
+            Hand hiddenSplit = new Hand();
+            hideHandInto(original.getSplitHand(), hiddenSplit);
+            hidden.setSplitHand(hiddenSplit);
         }
 
         return hidden;
     }
 
-    // ========================================================================
-    // VALIDATION
-    // ========================================================================
+    private void hideHandInto(Hand source, Hand target) {
+        for (int i = 0; i < source.size(); i++) {
+            if (i == 0) {
+                Card realCard = source.getCards().get(0);
+                Card visibleCopy = new Card(realCard.getRank(), realCard.getSuit());
+                visibleCopy.setFaceUp(true);
+                target.addCard(visibleCopy);
+            } else {
+                Card placeholder = new Card(Rank.ACE, Suit.SPADES);
+                placeholder.setFaceUp(false);
+                target.addCard(placeholder);
+            }
+        }
+    }
 
     private void validatePlayerTurn(Player player) {
         if (!turnManager.isPlayerTurn(player)) {
@@ -541,13 +441,7 @@ public class GameEngine {
         }
     }
 
-    // ========================================================================
-    // GETTERS
-    // ========================================================================
-
     public GameState getGameState() { return gameState; }
     public TurnManager getTurnManager() { return turnManager; }
     public GameConfig getConfig() { return config; }
 }
-
-

@@ -31,4 +31,3 @@ public class BlackjackApplication extends Application {
         super.stop();
     }
 }
-

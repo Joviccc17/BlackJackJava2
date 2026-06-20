@@ -5,11 +5,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-/**
- * Singleton managing thread pools for the application.
- * Provides a cached thread pool for general tasks and a scheduled pool for timed operations.
- * Must be shut down when the application exits via shutdown().
- */
 public class AppExecutorService {
 
     private static AppExecutorService instance;
@@ -40,31 +35,14 @@ public class AppExecutorService {
         return instance;
     }
 
-    /**
-     * Submits a task to the cached thread pool.
-     */
     public void submit(Runnable task) {
         cachedPool.submit(task);
     }
 
-    /**
-     * Returns the cached thread pool for direct use.
-     */
-    public ExecutorService getCachedPool() {
-        return cachedPool;
-    }
-
-    /**
-     * Returns the scheduled thread pool for timed/repeated tasks.
-     */
     public ScheduledExecutorService getScheduledPool() {
         return scheduledPool;
     }
 
-    /**
-     * Shuts down all thread pools gracefully.
-     * Should be called in Application.stop().
-     */
     public void shutdown() {
         cachedPool.shutdown();
         scheduledPool.shutdown();
@@ -82,4 +60,3 @@ public class AppExecutorService {
         }
     }
 }
-

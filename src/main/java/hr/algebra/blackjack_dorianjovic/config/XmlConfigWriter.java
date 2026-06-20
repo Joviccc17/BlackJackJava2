@@ -12,24 +12,16 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import java.io.File;
 
-/**
- * Writes GameConfig to an XML file using DOM (javax.xml.parsers.DocumentBuilder).
- */
 public class XmlConfigWriter {
 
-    /**
-     * Saves the given GameConfig to the specified XML file using DOM.
-     */
     public void saveConfig(GameConfig config, File file) throws Exception {
         DocumentBuilderFactory factory = DocumentBuilderFactory.newInstance();
         DocumentBuilder builder = factory.newDocumentBuilder();
         Document doc = builder.newDocument();
 
-        // Root element
         Element root = doc.createElement("blackjack-config");
         doc.appendChild(root);
 
-        // Game settings
         Element gameSettings = doc.createElement("game-settings");
         root.appendChild(gameSettings);
 
@@ -44,7 +36,6 @@ public class XmlConfigWriter {
         appendElement(doc, gameSettings, "dealer-hits-soft17",
                 String.valueOf(config.isDealerHitsSoft17()));
 
-        // Network settings
         Element networkSettings = doc.createElement("network-settings");
         root.appendChild(networkSettings);
 
@@ -55,13 +46,11 @@ public class XmlConfigWriter {
         appendElement(doc, networkSettings, "max-players",
                 String.valueOf(config.getMaxPlayers()));
 
-        // Write to file
         TransformerFactory transformerFactory = TransformerFactory.newInstance();
         Transformer transformer = transformerFactory.newTransformer();
         transformer.setOutputProperty(OutputKeys.INDENT, "yes");
         transformer.setOutputProperty("{http://xml.apache.org/xslt}indent-amount", "4");
 
-        // Ensure parent directories exist
         if (file.getParentFile() != null) {
             file.getParentFile().mkdirs();
         }
@@ -77,4 +66,3 @@ public class XmlConfigWriter {
         parent.appendChild(element);
     }
 }
-

@@ -22,14 +22,8 @@ import javafx.util.Duration;
 import java.io.File;
 import java.io.IOException;
 
-/**
- * Controller for the main game screen (game-view.fxml).
- * Connects GameEngine to the JavaFX GUI using MVC pattern.
- * Handles both Single Player and Multiplayer layouts.
- */
 public class GameController {
 
-    // --- FXML Components ---
     @FXML private Label lblOpponentName;
     @FXML private HBox opponentCardArea;
     @FXML private Label lblOpponentScore;
@@ -66,7 +60,6 @@ public class GameController {
     @FXML private Label lblCurrentBet;
     @FXML private Label lblRound;
 
-    // --- Game state ---
     private GameEngine engine;
     private GameMode gameMode;
     private HandView playerHandView;
@@ -84,9 +77,6 @@ public class GameController {
         opponentCardArea.getChildren().add(opponentHandView);
     }
 
-    /**
-     * Called by MainMenuController to initialize a single-player game.
-     */
     public void initSinglePlayer() {
         this.gameMode = GameMode.SINGLE_PLAYER;
         GameConfig config = loadConfig();
@@ -102,25 +92,6 @@ public class GameController {
         updateUI();
     }
 
-    /**
-     * Called to initialize a multiplayer game (local perspective).
-     */
-    public void initMultiplayer(GameEngine sharedEngine, int localPlayerId) {
-        this.gameMode = GameMode.MULTIPLAYER;
-        this.engine = sharedEngine;
-
-        lblOpponentName.setText("Opponent");
-        lblPlayerName.setText(localPlayerId == 1 ? "Player 1" : "Player 2");
-        lblPot.setVisible(true);
-        btnDoubleDown.setVisible(false); // No double down in MP
-
-        engine.startNewRound();
-        updateUI();
-    }
-
-    /**
-     * Initializes from a loaded GameState (deserialization).
-     */
     public void initFromSavedState(GameState savedState) {
         GameConfig config = loadConfig();
         this.gameMode = savedState.getMode();
@@ -140,10 +111,6 @@ public class GameController {
         updateUI();
     }
 
-    // ========================================================================
-    // FXML Action Handlers
-    // ========================================================================
-
     @FXML
     private void onPlaceBet() {
         try {
@@ -152,10 +119,9 @@ public class GameController {
             engine.placeBet(player, bet);
 
             if (gameMode == GameMode.SINGLE_PLAYER) {
-                // In SP, deal immediately after bet
+
                 engine.dealInitialCards();
 
-                // Check for natural blackjack (auto-resolved by engine)
                 if (engine.getGameState().getPhase() == GamePhase.SHOWDOWN) {
                     int betBefore = player.getCurrentBet();
                     int chipsBefore = player.getChips();
@@ -184,12 +150,12 @@ public class GameController {
 
         if (currentPlayer.hasSplit()) {
             if (!playingSplitHand) {
-                // Hand 1 — engine draws into main hand, no turn advancement
+
                 boolean busted = engine.playerHitDuringSplit(currentPlayer);
                 updateUI();
                 if (busted) switchToSplitHand2();
             } else {
-                // Hand 2 — engine draws into split hand, no turn advancement
+
                 boolean busted = engine.playerHitSplitHand(currentPlayer);
                 updateUI();
                 if (busted) finishSplitTurn(currentPlayer);
@@ -210,10 +176,10 @@ public class GameController {
 
         if (currentPlayer.hasSplit()) {
             if (!playingSplitHand) {
-                // Standing on hand 1, switch to hand 2
+
                 switchToSplitHand2();
             } else {
-                // Standing on hand 2, end split turn
+
                 finishSplitTurn(currentPlayer);
             }
         } else {
@@ -223,9 +189,6 @@ public class GameController {
         }
     }
 
-    /**
-     * Switches from playing hand 1 to hand 2 during a split.
-     */
     private void switchToSplitHand2() {
         playingSplitHand = true;
         lblHand1Label.setText("  Hand 1");
@@ -234,13 +197,10 @@ public class GameController {
         lblStatus.setText("Now playing Hand 2 — Hit or Stand?");
     }
 
-    /**
-     * Finishes the split turn — advances the game (dealer turn in SP, next player in MP).
-     */
     private void finishSplitTurn(Player player) {
         playingSplitHand = false;
         splitHandArea.setVisible(false);
-        // Advance turn past this player
+
         engine.getTurnManager().nextTurn();
         updateUI();
         handlePostPlayerTurn();
@@ -267,7 +227,7 @@ public class GameController {
 
         try {
             engine.playerSplit(currentPlayer);
-            playingSplitHand = false; // Start with hand 1
+            playingSplitHand = false;
             splitHandArea.setVisible(true);
             lblHand1Label.setText("▶ Hand 1");
             lblHand2Label.setText("  Hand 2");
@@ -293,7 +253,6 @@ public class GameController {
             return;
         }
 
-        // Let the player pick a save slot (1-5)
         ChoiceDialog<Integer> dialog = new ChoiceDialog<>(1, 1, 2, 3, 4, 5);
         dialog.setTitle("Save Game");
         dialog.setHeaderText("Choose a save slot");
@@ -324,15 +283,6 @@ public class GameController {
         }
     }
 
-    // ========================================================================
-    // Game Flow Logic
-    // ========================================================================
-
-    /**
-     * Called after a player's turn ends (stand, bust, or double down).
-     * In SP: triggers dealer turn then showdown.
-     * In MP: waits for both players to finish before showdown.
-     */
     private void handlePostPlayerTurn() {
         GamePhase phase = engine.getGameState().getPhase();
 
@@ -341,11 +291,10 @@ public class GameController {
             int chipsBefore = engine.getGameState().getPlayer1().getChips();
 
             if (phase == GamePhase.DEALER_TURN) {
-                // Disable all buttons while dealer plays
+
                 actionButtons.setVisible(false);
                 lblStatus.setText("Dealer's turn...");
 
-                // Run dealer turn asynchronously with delays between draws
                 DealerPlayTask dealerTask = new DealerPlayTask(engine, statusMsg -> {
                     Platform.runLater(this::updateUI);
                 }, 1200);
@@ -355,11 +304,10 @@ public class GameController {
                 );
 
                 dealerTask.setOnSucceeded(event -> Platform.runLater(() -> {
-                    // Advance phase past dealer turn
+
                     engine.getTurnManager().nextTurn();
                     updateUI();
 
-                    // Resolve showdown
                     if (engine.getGameState().getPhase() == GamePhase.SHOWDOWN) {
                         GameResult result = engine.resolveShowdown();
                         updateUI();
@@ -377,7 +325,7 @@ public class GameController {
                 AppExecutorService.getInstance().submit(dealerTask);
 
             } else if (phase == GamePhase.SHOWDOWN) {
-                // Player busted — skip dealer turn, go straight to showdown
+
                 GameResult result = engine.resolveShowdown();
                 updateUI();
 
@@ -386,22 +334,15 @@ public class GameController {
                 delay.play();
             }
         } else {
-            // MP: check if both players are done
+
             if (phase == GamePhase.SHOWDOWN) {
                 engine.resolveShowdown();
                 updateUI();
             }
-            // Otherwise, waiting for the other player's turn (handled via network)
+
         }
     }
 
-    // ========================================================================
-    // UI Update Methods
-    // ========================================================================
-
-    /**
-     * Master UI update method — refreshes all visual elements based on current GameState.
-     */
     private void updateUI() {
         GameState state = engine.getGameState();
         GamePhase phase = state.getPhase();
@@ -412,14 +353,10 @@ public class GameController {
         updatePhaseUI(phase, state);
     }
 
-    /**
-     * Updates the card displays for player and opponent.
-     */
     private void updateCards(GameState state) {
         Player player = state.getPlayer1();
         playerHandView.updateCards(player.getHand().getCards());
 
-        // Update split hand if it exists
         if (player.hasSplit()) {
             splitHandView.updateCards(player.getSplitHand().getCards());
             splitHandArea.setVisible(true);
@@ -435,23 +372,18 @@ public class GameController {
         }
     }
 
-    /**
-     * Updates score labels.
-     */
     private void updateScores(GameState state) {
         Player player = state.getPlayer1();
         lblPlayerScore.setText("Score: " + player.getHand().calculateScore());
 
-        // Split hand score is updated in updateCards
-
         if (gameMode == GameMode.SINGLE_PLAYER && state.getDealer() != null) {
             Dealer dealer = state.getDealer();
-            // Only show full score if all cards are face-up
+
             boolean allRevealed = dealer.getHand().getCards().stream().allMatch(Card::isFaceUp);
             if (allRevealed) {
                 lblOpponentScore.setText("Score: " + dealer.getHand().calculateScore());
             } else {
-                // Show only the face-up card's value
+
                 int visibleScore = dealer.getHand().getCards().stream()
                         .filter(Card::isFaceUp)
                         .mapToInt(Card::getValue)
@@ -459,7 +391,7 @@ public class GameController {
                 lblOpponentScore.setText("Score: " + visibleScore + " + ?");
             }
         } else if (state.getPlayer2() != null) {
-            // In MP, don't show opponent's score until showdown
+
             GamePhase phase = state.getPhase();
             if (phase == GamePhase.SHOWDOWN || phase == GamePhase.ROUND_OVER) {
                 lblOpponentScore.setText("Score: " + state.getPlayer2().getHand().calculateScore());
@@ -471,10 +403,6 @@ public class GameController {
         }
     }
 
-    /**
-     * Updates the bottom info bar (round, pot).
-     * Chips and bet are updated automatically via property bindings.
-     */
     private void updateInfoBar(GameState state) {
         lblRound.setText("Round: " + state.getRoundNumber());
 
@@ -483,9 +411,6 @@ public class GameController {
         }
     }
 
-    /**
-     * Shows/hides UI elements based on the current game phase.
-     */
     private void updatePhaseUI(GamePhase phase, GameState state) {
         switch (phase) {
             case WAITING, BETTING -> {
@@ -502,7 +427,6 @@ public class GameController {
                 roundOverButtons.setVisible(false);
                 lblStatus.setText("Your turn — Hit or Stand?");
 
-                // Enable/disable action buttons based on hand state
                 Player player = state.getPlayer1();
                 btnDoubleDown.setDisable(player.getHand().size() != 2
                         || player.getChips() < player.getCurrentBet());
@@ -531,24 +455,14 @@ public class GameController {
         }
     }
 
-    // ========================================================================
-    // Helper Methods
-    // ========================================================================
-
-    /**
-     * Returns the local player whose turn it currently is.
-     */
     private Player getCurrentLocalPlayer() {
         if (gameMode == GameMode.SINGLE_PLAYER) {
             return engine.getGameState().getPlayer1();
         }
-        // In MP, return the local player if it's their turn
+
         return engine.getTurnManager().getCurrentPlayer();
     }
 
-    /**
-     * Shows a popup alert displaying the round result with chip win/loss details.
-     */
     private void showRoundResultPopup(GameResult result, int betAmount, int chipsBefore) {
         int chipsAfter = engine.getGameState().getPlayer1().getChips();
         int netChange = chipsAfter - chipsBefore;
@@ -616,11 +530,6 @@ public class GameController {
         alert.show();
     }
 
-    /**
-     * Binds lblChips and lblCurrentBet to Player JavaFX properties, and wires
-     * the player HandView to the player's ObservableList<Card>.
-     * Must be called after engine is set and before the first updateUI().
-     */
     private void bindPlayerProperties() {
         Player p = engine.getGameState().getPlayer1();
         lblChips.textProperty().bind(
@@ -634,11 +543,6 @@ public class GameController {
     private static final String CONFIG_CLASSPATH =
             "/hr/algebra/blackjack_dorianjovic/config/game-config.xml";
 
-    /**
-     * Loads the GameConfig from the filesystem XML file.
-     * Falls back to the bundled classpath resource when the file doesn't exist yet
-     * (first launch, before the user has saved settings).
-     */
     private GameConfig loadConfig() {
         XmlConfigReader reader = new XmlConfigReader();
         try {
@@ -653,5 +557,3 @@ public class GameController {
         return new GameConfig();
     }
 }
-
-
